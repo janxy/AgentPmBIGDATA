@@ -32,6 +32,12 @@ const LON_SPAN = BOUNDS.maxLon - BOUNDS.minLon
 const LAT_SPAN = BOUNDS.maxLat - BOUNDS.minLat
 const MIN_ZOOM = 1
 const MAX_ZOOM = 6
+const TILE_SIZE = 256
+const MAX_TILE_CACHE = 64
+const MIN_TILE_ZOOM = 3
+const MAX_TILE_ZOOM = 10
+const MERCATOR_LAT_LIMIT = 85.05112878
+const TILE_URL_BASE = 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile'
 
 interface HoverInfo {
   title: string
@@ -60,6 +66,7 @@ interface MapRuntime {
   mapStore: ReturnType<typeof useMaritimeMapViewStore>
   targetsStore: ReturnType<typeof useMaritimeTargetsStore>
   hoverInfo: Ref<HoverInfo | null>
+  alive: boolean
   width: number
   height: number
   dpr: number
@@ -69,6 +76,8 @@ interface MapRuntime {
   disposeEvents: (() => void) | null
   disposeStoreWatch: (() => void) | null
   staticCache: StaticMapCache | null
+  tileImages: Map<string, HTMLImageElement>
+  failedTiles: Set<string>
 }
 
 interface StaticMapCache {
@@ -81,6 +90,13 @@ interface StaticMapCache {
   zoom: number
   districts: boolean
   radar: boolean
+}
+
+interface VisibleTile {
+  z: number
+  x: number
+  y: number
+  key: string
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -114,6 +130,119 @@ function unprojectPoint(runtime: MapRuntime, x: number, y: number): LatLng {
     lat:
       BOUNDS.maxLat -
       ((y - runtime.height / 2) / pixelScale(runtime) + normalizeLat(runtime.mapStore.center.lat)) * LAT_SPAN,
+  }
+}
+
+function webMercatorY(latRad: number) {
+  return (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2
+}
+
+function webMercatorLat(normalizedY: number) {
+  return (Math.atan(Math.sinh(Math.PI * (1 - 2 * normalizedY))) * 180) / Math.PI
+}
+
+function tileZoom(runtime: MapRuntime) {
+  const pixelsPerDegree = pixelScale(runtime) / LON_SPAN
+  return clamp(Math.round(Math.log2((360 * pixelsPerDegree) / TILE_SIZE)), MIN_TILE_ZOOM, MAX_TILE_ZOOM)
+}
+
+function visibleTileKeys(runtime: MapRuntime, z: number): VisibleTile[] {
+  const size = 2 ** z
+  const corners = [
+    unprojectPoint(runtime, 0, 0),
+    unprojectPoint(runtime, runtime.width, 0),
+    unprojectPoint(runtime, runtime.width, runtime.height),
+    unprojectPoint(runtime, 0, runtime.height),
+  ]
+  let minX = size
+  let maxX = 0
+  let minY = size
+  let maxY = 0
+  for (const point of corners) {
+    const lon = clamp(point.lon, -180, 180)
+    const lat = clamp(point.lat, -MERCATOR_LAT_LIMIT, MERCATOR_LAT_LIMIT)
+    const x = ((lon + 180) / 360) * size
+    const y = webMercatorY((lat * Math.PI) / 180) * size
+    minX = Math.min(minX, x)
+    maxX = Math.max(maxX, x)
+    minY = Math.min(minY, y)
+    maxY = Math.max(maxY, y)
+  }
+  const firstX = clamp(Math.floor(minX), 0, size - 1)
+  const lastX = clamp(Math.ceil(maxX), 0, size - 1)
+  const firstY = clamp(Math.floor(minY), 0, size - 1)
+  const lastY = clamp(Math.ceil(maxY), 0, size - 1)
+  const tiles: VisibleTile[] = []
+  for (let x = firstX; x <= lastX; x += 1) {
+    for (let y = firstY; y <= lastY; y += 1) {
+      tiles.push({ z, x, y, key: `${z}/${x}/${y}` })
+    }
+  }
+  return tiles
+}
+
+function tileBounds(tile: VisibleTile) {
+  const size = 2 ** tile.z
+  return {
+    west: (tile.x / size) * 360 - 180,
+    east: ((tile.x + 1) / size) * 360 - 180,
+    north: webMercatorLat(tile.y / size),
+    south: webMercatorLat((tile.y + 1) / size),
+  }
+}
+
+function loadTile(runtime: MapRuntime, tile: VisibleTile): HTMLImageElement | null {
+  const cached = runtime.tileImages.get(tile.key)
+  if (cached) return cached
+  if (runtime.failedTiles.has(tile.key)) return null
+  if (runtime.tileImages.size >= MAX_TILE_CACHE) return null
+  const img = new Image()
+  img.decoding = 'async'
+  runtime.tileImages.set(tile.key, img)
+  img.onload = () => {
+    if (!runtime.alive || runtime.tileImages.get(tile.key) !== img) return
+    runtime.staticCache = null
+    scheduleRender(runtime)
+  }
+  img.onerror = () => {
+    if (!runtime.alive || runtime.tileImages.get(tile.key) !== img) return
+    runtime.tileImages.delete(tile.key)
+    runtime.failedTiles.add(tile.key)
+    runtime.staticCache = null
+    scheduleRender(runtime)
+  }
+  img.src = `${TILE_URL_BASE}/${tile.z}/${tile.y}/${tile.x}`
+  return img
+}
+
+function pruneTileCache(runtime: MapRuntime, visible: VisibleTile[]) {
+  if (runtime.tileImages.size <= MAX_TILE_CACHE) return
+  const keep = new Set(visible.map((tile) => tile.key))
+  for (const key of Array.from(runtime.tileImages.keys())) {
+    if (runtime.tileImages.size <= MAX_TILE_CACHE - 8) break
+    if (!keep.has(key)) runtime.tileImages.delete(key)
+  }
+  if (runtime.failedTiles.size > MAX_TILE_CACHE * 2) runtime.failedTiles.clear()
+}
+
+function drawTileBackground(runtime: MapRuntime, ctx: CanvasRenderingContext2D) {
+  const tiles = visibleTileKeys(runtime, tileZoom(runtime))
+  pruneTileCache(runtime, tiles)
+  for (const tile of tiles) {
+    const img = loadTile(runtime, tile)
+    if (!img || !img.complete || !img.naturalWidth) continue
+    const bounds = tileBounds(tile)
+    const pTL = projectPoint(runtime, { lon: bounds.west, lat: bounds.north })
+    const pTR = projectPoint(runtime, { lon: bounds.east, lat: bounds.north })
+    const pBL = projectPoint(runtime, { lon: bounds.west, lat: bounds.south })
+    const a = (pTR.x - pTL.x) / TILE_SIZE
+    const b = (pTR.y - pTL.y) / TILE_SIZE
+    const c = (pBL.x - pTL.x) / TILE_SIZE
+    const d = (pBL.y - pTL.y) / TILE_SIZE
+    ctx.save()
+    ctx.setTransform(a, b, c, d, pTL.x, pTL.y)
+    ctx.drawImage(img, 0, 0)
+    ctx.restore()
   }
 }
 
@@ -155,7 +284,7 @@ function buildLayerContext(runtime: MapRuntime, ctx: CanvasRenderingContext2D): 
 
 function renderMap(runtime: MapRuntime) {
   runtime.raf = 0
-  if (document.visibilityState === 'hidden') return
+  if (!runtime.alive || document.visibilityState === 'hidden') return
   const canvas = runtime.canvasRef.value
   const ctx = canvas?.getContext('2d')
   if (!ctx) return
@@ -196,6 +325,7 @@ function drawStaticLayers(runtime: MapRuntime, ctx: CanvasRenderingContext2D) {
       staticCtx.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0)
       staticCtx.clearRect(0, 0, runtime.width, runtime.height)
       drawOcean(staticCtx, runtime.width, runtime.height)
+      drawTileBackground(runtime, staticCtx)
       drawGrid(staticCtx, runtime.width, runtime.height, (x, y) => unprojectPoint(runtime, x, y))
       if (mapStore.layers.districts) {
         drawDistricts(staticCtx, (point: LatLng) => projectPoint(runtime, point))
@@ -221,7 +351,7 @@ function drawStaticLayers(runtime: MapRuntime, ctx: CanvasRenderingContext2D) {
 }
 
 function scheduleRender(runtime: MapRuntime) {
-  if (document.visibilityState === 'hidden') return
+  if (!runtime.alive || document.visibilityState === 'hidden') return
   if (runtime.raf !== 0) return
   runtime.raf = requestAnimationFrame(() => renderMap(runtime))
 }
@@ -547,6 +677,7 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
     mapStore,
     targetsStore,
     hoverInfo,
+    alive: true,
     width: 1,
     height: 1,
     dpr: 1,
@@ -556,6 +687,8 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
     disposeEvents: null,
     disposeStoreWatch: null,
     staticCache: null,
+    tileImages: new Map(),
+    failedTiles: new Set(),
   }
 
   watch(
@@ -617,6 +750,7 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
   })
 
   onBeforeUnmount(() => {
+    runtime.alive = false
     cancelAnimationFrame(runtime.raf)
     runtime.resizeObserver?.disconnect()
     runtime.disposeEvents?.()
