@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>maritime mock check</title>
+  </head>
+  <body>
+    <pre id="out">running</pre>
+    <script type="module" src="/src/mock/index.ts"></script>
+    <script type="module">
+      const out = document.getElementById('out')
+      const rows = []
+      const record = (label, value) => rows.push({ label, value })
+
+      const getJson = async (path) => {
+        const res = await fetch(path)
+        return { httpStatus: res.status, body: await res.json() }
+      }
+
+      const postJson = async (path, body) => {
+        const res = await fetch(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        return { httpStatus: res.status, body: await res.json() }
+      }
+
+      const main = async () => {
+        const overview = await getJson('/api/maritime/overview')
+        record('GET overview', overview)
+
+        const targets = await getJson('/api/maritime/targets?page=1&pageSize=10')
+        record('GET targets p1 size10', targets)
+
+        const targetsFiltered = await getJson(
+          '/api/maritime/targets?page=1&pageSize=5&sources=ais,radar&statuses=online&keyword=海巡',
+        )
+        record('GET targets filtered', targetsFiltered)
+
+        const detail = await getJson('/api/maritime/target/detail?id=T-0001')
+        record('GET target/detail T-0001', detail)
+
+        const sources = await getJson('/api/maritime/target/sources?id=T-0001')
+        record('GET target/sources T-0001', sources)
+
+        const track = await getJson('/api/maritime/target/track?id=T-0001&limit=60')
+        record('GET target/track T-0001', track)
+
+        const alarms = await getJson('/api/maritime/alarms?page=1&pageSize=10')
+        record('GET alarms p1 size10', alarms)
+
+        const status0 = await getJson('/api/maritime/status')
+        record('GET status initial', status0)
+
+        const refresh = await postJson('/api/maritime/refresh', {})
+        record('POST refresh', refresh)
+
+        const pause = await postJson('/api/maritime/pause', { paused: true })
+        record('POST pause true', pause)
+
+        const statusPaused = await getJson('/api/maritime/status')
+        record('GET status after pause', statusPaused)
+
+        const errorOn = await postJson('/api/maritime/error', { enabled: true })
+        record('POST error true', errorOn)
+
+        const refreshFail = await postJson('/api/maritime/refresh', {})
+        record('POST refresh after error injection', refreshFail)
+
+        const overviewAfterFail = await getJson('/api/maritime/overview')
+        record('GET overview after failed refresh', overviewAfterFail)
+
+        const errorOff = await postJson('/api/maritime/error', { enabled: false })
+        record('POST error false', errorOff)
+
+        const invalidStatus = await postJson('/api/maritime/alarms/status', {
+          id: 'A-0001',
+          status: 'invalid',
+        })
+        record('POST alarms/status invalid', invalidStatus)
+
+        const alarmPage = await getJson('/api/maritime/alarms?page=1&pageSize=999')
+        const pending = alarmPage.body.data.items.find((a) => a.status === 'pending')
+        if (pending) {
+          const validStatus = await postJson('/api/maritime/alarms/status', {
+            id: pending.id,
+            status: 'processing',
+          })
+          record('POST alarms/status pending->processing', validStatus)
+        } else {
+          record('POST alarms/status valid transition', 'no pending alarm found')
+        }
+
+        const unknownGet = await getJson('/api/maritime/not-exist')
+        record('GET unknown maritime path', unknownGet)
+
+        const unknownPost = await postJson('/api/maritime/not-exist', {})
+        record('POST unknown maritime path', unknownPost)
+
+        out.textContent = JSON.stringify(rows, null, 2)
+      }
+
+      main().catch((error) => {
+        out.textContent = 'FATAL: ' + String(error)
+      })
+    </script>
+  </body>
+</html>

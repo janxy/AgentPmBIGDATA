@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="draw.io">
+  <diagram name="海上全域感知大屏业务流程图" id="business-flow">
+    <mxGraphModel dx="740" dy="520" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="740" pageHeight="520" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="spacer" value="" style="fillColor=none;strokeColor=none;opacity=0;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="740" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="2" value="数据接入层" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="600" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="生成/接入多源上报&lt;br&gt;（AIS、雷达、北斗）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="2">
+          <mxGeometry x="30" y="50" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="融合目标并更新状态" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="2">
+          <mxGeometry x="230" y="50" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="生成告警事件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="2">
+          <mxGeometry x="430" y="50" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" value="值班监控员" style="swimlane;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;html=1;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="600" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="7" value="打开大屏查看海图态势" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="6">
+          <mxGeometry x="30" y="20" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" value="筛选与查看目标" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="6">
+          <mxGeometry x="230" y="20" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="9" value="点击目标查看详情" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="6">
+          <mxGeometry x="430" y="20" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="10" value="发现告警并定位" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="6">
+          <mxGeometry x="30" y="100" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="发起告警处置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="6">
+          <mxGeometry x="230" y="100" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="值班长/指挥调度" style="swimlane;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="13" value="复核处置结果" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="12">
+          <mxGeometry x="230" y="30" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="14" value="完成处置闭环" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="12">
+          <mxGeometry x="430" y="30" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="3" target="4" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="4" target="5" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" source="4" target="7" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="305" y="270"/>
+              <mxPoint x="135" y="270"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="5" target="10" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="700" y="70"/>
+              <mxPoint x="700" y="340"/>
+              <mxPoint x="200" y="340"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="7" target="8" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="8" target="9" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="9" target="11" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="320"/>
+              <mxPoint x="410" y="320"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="10" target="11" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="11" target="13" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="13" target="14" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

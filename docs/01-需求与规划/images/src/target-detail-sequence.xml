@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="draw.io">
+  <diagram name="目标详情时序图" id="target-detail-sequence">
+    <mxGraphModel dx="900" dy="1080" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="spacer" value="" style="fillColor=none;strokeColor=none;opacity=0;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="900" height="1080" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_user_top" value="值班人员" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="40" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_detail_top" value="目标详情" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="40" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_map_top" value="地图态势层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="40" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_data_top" value="演示数据层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="690" y="40" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="life_user" style="endArrow=none;dashed=1;strokeColor=#999999;dashPattern=4 4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="76" as="sourcePoint"/>
+            <mxPoint x="150" y="1010" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="life_detail" style="endArrow=none;dashed=1;strokeColor=#999999;dashPattern=4 4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="76" as="sourcePoint"/>
+            <mxPoint x="350" y="1010" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="life_map" style="endArrow=none;dashed=1;strokeColor=#999999;dashPattern=4 4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="550" y="76" as="sourcePoint"/>
+            <mxPoint x="550" y="1010" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="life_data" style="endArrow=none;dashed=1;strokeColor=#999999;dashPattern=4 4;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="750" y="76" as="sourcePoint"/>
+            <mxPoint x="750" y="1010" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g1" value="场景一：打开目标详情" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=12;fontStyle=1;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="820" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="m1" value="点击目标或列表项" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="150" as="sourcePoint"/>
+            <mxPoint x="350" y="150" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2" value="获取目标基本信息与实时动态" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="190" as="sourcePoint"/>
+            <mxPoint x="750" y="190" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3" value="返回基本信息、实时动态、来源状态" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="750" y="230" as="sourcePoint"/>
+            <mxPoint x="350" y="230" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m4" value="展示目标概览与动态信息" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="270" as="sourcePoint"/>
+            <mxPoint x="150" y="270" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g2" value="场景二：查看来源融合" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=12;fontStyle=1;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="820" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="m5" value="查看来源融合信息" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="380" as="sourcePoint"/>
+            <mxPoint x="350" y="380" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m6" value="获取各来源最近上报与数据质量" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="420" as="sourcePoint"/>
+            <mxPoint x="750" y="420" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m7" value="返回 AIS、雷达、北斗上报信息" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="750" y="460" as="sourcePoint"/>
+            <mxPoint x="350" y="460" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m8" value="展示来源融合状态" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="500" as="sourcePoint"/>
+            <mxPoint x="150" y="500" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g3" value="场景三：查看轨迹概览" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=12;fontStyle=1;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="570" width="820" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="m9" value="查看轨迹概览" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="620" as="sourcePoint"/>
+            <mxPoint x="350" y="620" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m10" value="获取最近轨迹点" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="660" as="sourcePoint"/>
+            <mxPoint x="750" y="660" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m11" value="返回轨迹点列表" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="750" y="700" as="sourcePoint"/>
+            <mxPoint x="350" y="700" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m12" value="绘制轨迹并展示关键航迹点" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="740" as="sourcePoint"/>
+            <mxPoint x="150" y="740" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g4" value="场景四：快捷操作" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#333333;fontSize=12;fontStyle=1;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="820" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="m13" value="执行定位快捷操作" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="860" as="sourcePoint"/>
+            <mxPoint x="350" y="860" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m14" value="请求地图定位并高亮" style="endArrow=block;endFill=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="900" as="sourcePoint"/>
+            <mxPoint x="550" y="900" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m15" value="返回定位完成" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="550" y="940" as="sourcePoint"/>
+            <mxPoint x="350" y="940" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m16" value="展示定位完成状态" style="endArrow=open;endFill=0;dashed=1;html=1;fontSize=11;verticalAlign=bottom;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="980" as="sourcePoint"/>
+            <mxPoint x="150" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p_user_bottom" value="值班人员" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1010" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_detail_bottom" value="目标详情" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="1010" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_map_bottom" value="地图态势层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="1010" width="120" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_data_bottom" value="演示数据层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="690" y="1010" width="120" height="36" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
