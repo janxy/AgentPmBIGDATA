@@ -9,10 +9,13 @@ export interface MaritimeGeoFeature {
 }
 
 export interface RadarStation {
+  id: string
   name: string
   lon: number
   lat: number
   radiusKm: number
+  online: boolean
+  lastUpdate: string
 }
 
 export const MARITIME_GEO_FEATURES: MaritimeGeoFeature[] = [
@@ -96,9 +99,43 @@ export const MARITIME_GEO_FEATURES: MaritimeGeoFeature[] = [
   { name: '长江口', kind: 'label', label: { lon: 121.95, lat: 31.05 } },
 ]
 
+const RADAR_UPDATE_TIME = new Date(Date.now() - 3 * 60000).toISOString()
+
 export const RADAR_STATIONS: RadarStation[] = [
-  { name: '芦潮港雷达站', lon: 121.85, lat: 30.82, radiusKm: 160 },
-  { name: '嵊泗雷达站', lon: 122.45, lat: 30.72, radiusKm: 150 },
-  { name: '舟山雷达站', lon: 122.2, lat: 29.95, radiusKm: 140 },
-  { name: '洋山雷达站', lon: 121.95, lat: 30.62, radiusKm: 120 },
+  {
+    id: 'RADAR-LCG',
+    name: '芦潮港雷达站',
+    lon: 121.85,
+    lat: 30.82,
+    radiusKm: 160,
+    online: true,
+    lastUpdate: RADAR_UPDATE_TIME,
+  },
+  {
+    id: 'RADAR-SS',
+    name: '嵊泗雷达站',
+    lon: 122.45,
+    lat: 30.72,
+    radiusKm: 150,
+    online: true,
+    lastUpdate: RADAR_UPDATE_TIME,
+  },
+  {
+    id: 'RADAR-ZS',
+    name: '舟山雷达站',
+    lon: 122.2,
+    lat: 29.95,
+    radiusKm: 140,
+    online: true,
+    lastUpdate: RADAR_UPDATE_TIME,
+  },
+  {
+    id: 'RADAR-YS',
+    name: '洋山雷达站',
+    lon: 121.95,
+    lat: 30.62,
+    radiusKm: 120,
+    online: true,
+    lastUpdate: RADAR_UPDATE_TIME,
+  },
 ]

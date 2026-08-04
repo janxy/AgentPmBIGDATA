@@ -206,16 +206,16 @@
             <dd>{{ text(radarDetail.id) }}</dd>
           </div>
           <div class="td-field">
-            <dt>来源</dt>
-            <dd>{{ TARGET_SOURCE_LABELS[radarDetail.source] }}</dd>
-          </div>
-          <div class="td-field">
-            <dt>跟踪状态</dt>
+            <dt>设备状态</dt>
             <dd>
-              <span class="td-status" :class="radarDetail.tracking ? 'is-online' : 'is-offline'">
-                {{ radarDetail.tracking ? '跟踪中' : '丢失' }}
+              <span class="td-status" :class="radarDetail.online ? 'is-online' : 'is-offline'">
+                {{ radarDetail.online ? '在线' : '离线' }}
               </span>
             </dd>
+          </div>
+          <div class="td-field">
+            <dt>覆盖范围</dt>
+            <dd>{{ numberText(radarDetail.radiusKm, ' km') }}</dd>
           </div>
         </dl>
       </section>
@@ -226,14 +226,6 @@
           <div class="td-field td-field--span2">
             <dt>经纬度</dt>
             <dd>{{ categoryPositionText(radarDetail.lon, radarDetail.lat) }}</dd>
-          </div>
-          <div class="td-field">
-            <dt>航速</dt>
-            <dd>{{ numberText(radarDetail.speed, ' kn') }}</dd>
-          </div>
-          <div class="td-field">
-            <dt>航向</dt>
-            <dd>{{ numberText(radarDetail.course, '°') }}</dd>
           </div>
           <div class="td-field">
             <dt>更新时间</dt>
@@ -410,7 +402,8 @@ import {
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeAlarmsStore } from '@/stores/maritimeAlarms'
-import { EO_DEVICES, FENCE_ZONES, RADAR_CONTACTS } from '@/mock/maritime/monitor'
+import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
+import { RADAR_STATIONS } from '@/utils/maritimeGeography'
 import {
   ALARM_LEVEL_LABELS,
   ALARM_TYPE_LABELS,
@@ -440,7 +433,7 @@ const emphasizeTrajectory = ref(false)
 const detail = computed(() => targetsStore.detail)
 const radarDetail = computed(() =>
   mapStore.selectedCategory === 'radar'
-    ? RADAR_CONTACTS.find((item) => item.id === mapStore.selectedCategoryId) ?? null
+    ? RADAR_STATIONS.find((item) => item.id === mapStore.selectedCategoryId) ?? null
     : null,
 )
 const eoDetail = computed(() =>

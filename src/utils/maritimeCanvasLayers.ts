@@ -7,14 +7,12 @@ import type {
   LayerState,
   MapMode,
   MonitorCategory,
-  RadarContact,
   TargetStyleState,
 } from '@/types/maritime'
-import { EO_DEVICES, FENCE_ZONES, RADAR_CONTACTS } from '@/mock/maritime/monitor'
+import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
 import { MARITIME_GEO_FEATURES, RADAR_STATIONS } from '@/utils/maritimeGeography'
 import {
   MARKER_RADIUS,
-  SOURCE_COLORS,
   STATUS_COLORS,
   clusterRadius,
 } from '@/utils/maritimeMapTheme'
@@ -24,12 +22,6 @@ const KM_PER_DEG = 111.32
 
 export interface ScreenTarget {
   target: FusionTarget
-  x: number
-  y: number
-}
-
-export interface ScreenRadarContact {
-  contact: RadarContact
   x: number
   y: number
 }
@@ -70,7 +62,6 @@ export interface MapLayerContext {
   pickedPoint: LatLng | null
   highlightId: string | null
   selectedId: string | null
-  radarContacts: RadarContact[]
   eoDevices: EoDevice[]
   zones: FenceZone[]
   selectedCategory: MonitorCategory | null
@@ -108,13 +99,6 @@ export function buildScreenItems(
       y: list.reduce((sum, item) => sum + item.y, 0) / list.length,
     }
   })
-}
-
-export function buildRadarScreenItems(
-  contacts: RadarContact[],
-  project: (point: LatLng) => { x: number; y: number },
-): ScreenRadarContact[] {
-  return contacts.map((contact) => ({ contact, ...project(contact) }))
 }
 
 export function buildEoScreenItems(
@@ -280,11 +264,49 @@ export function drawRadar(
     ctx.ellipse(point.x, point.y, radiusX, radiusY, 0, 0, Math.PI * 2)
     ctx.stroke()
     ctx.setLineDash([])
+  }
+  ctx.restore()
+}
 
-    ctx.fillStyle = 'rgba(143, 176, 208, 0.8)'
-    ctx.font = '12px "PingFang SC", sans-serif'
+export function drawRadarStations(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
+  ctx.save()
+  for (const station of RADAR_STATIONS) {
+    const point = context.project(station)
+    const active = context.selectedCategory === 'radar' && context.selectedCategoryId === station.id
+    const color = active ? '#ffd166' : '#38c6ff'
+
+    if (active) {
+      ctx.strokeStyle = color
+      ctx.globalAlpha = 0.65
+      ctx.lineWidth = 1.4
+      ctx.beginPath()
+      ctx.arc(point.x, point.y, 15, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
+
+    ctx.fillStyle = 'rgba(3, 14, 24, 0.9)'
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.8
+    ctx.beginPath()
+    ctx.arc(point.x, point.y, 7, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.2
+    for (let i = 0; i < 3; i += 1) {
+      const angle = -Math.PI / 2 + (i - 1) * 0.46
+      ctx.beginPath()
+      ctx.moveTo(point.x, point.y)
+      ctx.lineTo(point.x + Math.cos(angle) * 10, point.y + Math.sin(angle) * 10)
+      ctx.stroke()
+    }
+
+    ctx.fillStyle = active ? '#ffd166' : 'rgba(143, 176, 208, 0.92)'
+    ctx.font = '11px "PingFang SC", sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(station.name, point.x, point.y - 10)
+    ctx.fillText(station.name, point.x, point.y + 22)
   }
   ctx.restore()
 }
@@ -332,52 +354,6 @@ export function drawZoneMarkers(ctx: CanvasRenderingContext2D, context: MapLayer
     ctx.fillRect(-5, -5, 10, 10)
     ctx.strokeRect(-5, -5, 10, 10)
     ctx.restore()
-  }
-  ctx.restore()
-}
-
-export function drawRadarContacts(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
-  const contacts = context.radarContacts.length > 0 ? context.radarContacts : RADAR_CONTACTS
-  ctx.save()
-  for (const item of buildRadarScreenItems(contacts, context.project)) {
-    const contact = item.contact
-    const color = SOURCE_COLORS[contact.source]
-    const active = context.selectedCategory === 'radar' && context.selectedCategoryId === contact.id
-
-    if (active) {
-      ctx.strokeStyle = color
-      ctx.globalAlpha = 0.55
-      ctx.lineWidth = 1.4
-      ctx.beginPath()
-      ctx.arc(item.x, item.y, 11, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.globalAlpha = 1
-    }
-
-    const heading = (contact.course * Math.PI) / 180
-    ctx.strokeStyle = color
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(item.x, item.y)
-    ctx.lineTo(item.x + Math.sin(heading) * 9, item.y - Math.cos(heading) * 9)
-    ctx.stroke()
-
-    ctx.save()
-    ctx.translate(item.x, item.y)
-    ctx.rotate(Math.PI / 4)
-    ctx.fillStyle = 'rgba(3, 14, 24, 0.88)'
-    ctx.strokeStyle = color
-    ctx.lineWidth = 1.7
-    ctx.fillRect(-4.4, -4.4, 8.8, 8.8)
-    ctx.strokeRect(-4.4, -4.4, 8.8, 8.8)
-    ctx.restore()
-
-    if (context.zoom >= 2.8) {
-      ctx.fillStyle = 'rgba(143, 176, 208, 0.85)'
-      ctx.font = '11px "PingFang SC", sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(contact.name, item.x, item.y + 18)
-    }
   }
   ctx.restore()
 }

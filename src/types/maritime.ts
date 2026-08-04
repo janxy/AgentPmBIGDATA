@@ -176,7 +176,6 @@ export interface MapViewState {
 
 export interface LayerState {
   vessels: boolean
-  districts: boolean
   radar: boolean
   eo: boolean
   zones: boolean

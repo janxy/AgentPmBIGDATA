@@ -6,21 +6,21 @@ import 'element-plus/es/components/message/style/css'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import { JURISDICTION_BOUNDS, TARGET_SOURCE_LABELS, TARGET_STATUS_LABELS } from '@/types/maritime'
-import type { EoDevice, FenceZone, FusionTarget, LatLng, RadarContact } from '@/types/maritime'
-import { EO_DEVICES, FENCE_ZONES, RADAR_CONTACTS } from '@/mock/maritime/monitor'
+import type { EoDevice, FenceZone, FusionTarget, LatLng } from '@/types/maritime'
+import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
+import { RADAR_STATIONS } from '@/utils/maritimeGeography'
+import type { RadarStation } from '@/utils/maritimeGeography'
 import { clusterRadius, markerRadius } from '@/utils/maritimeMapTheme'
 import {
   buildEoScreenItems,
-  buildRadarScreenItems,
   buildScreenItems,
-  drawDistricts,
   drawEoDevices,
   drawGrid,
   drawMeasure,
   drawOcean,
   drawPickPoint,
   drawRadar,
-  drawRadarContacts,
+  drawRadarStations,
   drawZoneMarkers,
   drawTargets,
   isCluster,
@@ -37,7 +37,8 @@ const MAX_TILE_CACHE = 64
 const MIN_TILE_ZOOM = 3
 const MAX_TILE_ZOOM = 10
 const MERCATOR_LAT_LIMIT = 85.05112878
-const TILE_URL_BASE = 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile'
+// 天地图卫星底图浏览器端测试 key，正式部署时请替换为项目自己的 key。
+const TILE_TOKEN = '55b4d4eaef95384c946e9bd1b99c5610'
 
 interface HoverInfo {
   title: string
@@ -57,7 +58,7 @@ interface DragState {
 type MapHit =
   | { kind: 'cluster'; item: ScreenCluster }
   | { kind: 'vessel'; target: FusionTarget }
-  | { kind: 'radar'; contact: RadarContact }
+  | { kind: 'radar'; station: RadarStation }
   | { kind: 'eo'; device: EoDevice }
   | { kind: 'zone'; zone: FenceZone }
 
@@ -88,7 +89,6 @@ interface StaticMapCache {
   centerLon: number
   centerLat: number
   zoom: number
-  districts: boolean
   radar: boolean
 }
 
@@ -131,6 +131,13 @@ function unprojectPoint(runtime: MapRuntime, x: number, y: number): LatLng {
       BOUNDS.maxLat -
       ((y - runtime.height / 2) / pixelScale(runtime) + normalizeLat(runtime.mapStore.center.lat)) * LAT_SPAN,
   }
+}
+
+function formatMonitorTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function webMercatorY(latRad: number) {
@@ -191,6 +198,11 @@ function tileBounds(tile: VisibleTile) {
   }
 }
 
+function buildTileUrl(tile: VisibleTile) {
+  const subdomain = (tile.x + tile.y) % 8
+  return `https://t${subdomain}.tianditu.gov.cn/DataServer?T=img_w&x=${tile.x}&y=${tile.y}&l=${tile.z}&tk=${TILE_TOKEN}`
+}
+
 function loadTile(runtime: MapRuntime, tile: VisibleTile): HTMLImageElement | null {
   const cached = runtime.tileImages.get(tile.key)
   if (cached) return cached
@@ -211,7 +223,7 @@ function loadTile(runtime: MapRuntime, tile: VisibleTile): HTMLImageElement | nu
     runtime.staticCache = null
     scheduleRender(runtime)
   }
-  img.src = `${TILE_URL_BASE}/${tile.z}/${tile.y}/${tile.x}`
+  img.src = buildTileUrl(tile)
   return img
 }
 
@@ -274,7 +286,6 @@ function buildLayerContext(runtime: MapRuntime, ctx: CanvasRenderingContext2D): 
     pickedPoint: mapStore.pickedPoint,
     highlightId: mapStore.highlightId,
     selectedId: targetsStore.selectedId,
-    radarContacts: RADAR_CONTACTS,
     eoDevices: EO_DEVICES,
     zones: FENCE_ZONES,
     selectedCategory: mapStore.selectedCategory,
@@ -293,7 +304,7 @@ function renderMap(runtime: MapRuntime) {
   const context = buildLayerContext(runtime, ctx)
   drawStaticLayers(runtime, ctx)
   if (runtime.mapStore.layers.zones) drawZoneMarkers(ctx, context)
-  if (runtime.mapStore.layers.radar) drawRadarContacts(ctx, context)
+  if (runtime.mapStore.layers.radar) drawRadarStations(ctx, context)
   if (runtime.mapStore.layers.eo) drawEoDevices(ctx, context)
   if (runtime.mapStore.layers.vessels) drawTargets(ctx, context)
   drawMeasure(ctx, (point: LatLng) => projectPoint(runtime, point), runtime.mapStore.measurePoints)
@@ -313,7 +324,6 @@ function drawStaticLayers(runtime: MapRuntime, ctx: CanvasRenderingContext2D) {
     cached.centerLon !== mapStore.center.lon ||
     cached.centerLat !== mapStore.center.lat ||
     cached.zoom !== mapStore.zoom ||
-    cached.districts !== mapStore.layers.districts ||
     cached.radar !== mapStore.layers.radar
 
   if (needsUpdate) {
@@ -327,9 +337,6 @@ function drawStaticLayers(runtime: MapRuntime, ctx: CanvasRenderingContext2D) {
       drawOcean(staticCtx, runtime.width, runtime.height)
       drawTileBackground(runtime, staticCtx)
       drawGrid(staticCtx, runtime.width, runtime.height, (x, y) => unprojectPoint(runtime, x, y))
-      if (mapStore.layers.districts) {
-        drawDistricts(staticCtx, (point: LatLng) => projectPoint(runtime, point))
-      }
       if (mapStore.layers.radar) {
         drawRadar(staticCtx, (point: LatLng) => projectPoint(runtime, point))
       }
@@ -342,7 +349,6 @@ function drawStaticLayers(runtime: MapRuntime, ctx: CanvasRenderingContext2D) {
       centerLon: mapStore.center.lon,
       centerLat: mapStore.center.lat,
       zoom: mapStore.zoom,
-      districts: mapStore.layers.districts,
       radar: mapStore.layers.radar,
     }
   }
@@ -372,8 +378,9 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
   }
 
   if (mapStore.layers.radar) {
-    for (const item of buildRadarScreenItems(RADAR_CONTACTS, project)) {
-      if (Math.hypot(item.x - x, item.y - y) <= 10) return { kind: 'radar', contact: item.contact }
+    for (const station of RADAR_STATIONS) {
+      const point = project(station)
+      if (Math.hypot(point.x - x, point.y - y) <= 14) return { kind: 'radar', station }
     }
   }
 
@@ -441,13 +448,13 @@ function updateMapHover(runtime: MapRuntime, x: number, y: number) {
     return
   }
   if (item.kind === 'radar') {
-    const contact = item.contact
+    const station = item.station
     runtime.hoverInfo.value = {
-      title: contact.name,
+      title: station.name,
       rows: [
-        `编号 ${contact.id}`,
-        `来源 ${TARGET_SOURCE_LABELS[contact.source]} · ${contact.tracking ? '跟踪中' : '丢失'}`,
-        `航速 ${contact.speed.toFixed(1)} kn · 航向 ${contact.course.toFixed(1)}°`,
+        `编号 ${station.id}`,
+        `${station.online ? '在线' : '离线'} · 覆盖 ${station.radiusKm.toFixed(0)} km`,
+        `更新时间 ${formatMonitorTime(station.lastUpdate)}`,
       ],
       x,
       y,
@@ -532,9 +539,9 @@ function handleMapClick(runtime: MapRuntime, x: number, y: number) {
   }
   if (item.kind === 'radar') {
     targetsStore.clearSelection()
-    mapStore.selectMonitorItem('radar', item.contact.id)
+    mapStore.selectMonitorItem('radar', item.station.id)
     mapStore.showLayer('radar')
-    mapStore.focusPoint({ lon: item.contact.lon, lat: item.contact.lat }, Math.max(2.8, mapStore.zoom))
+    mapStore.focusPoint({ lon: item.station.lon, lat: item.station.lat }, Math.max(2.8, mapStore.zoom))
     return
   }
   if (item.kind === 'eo') {

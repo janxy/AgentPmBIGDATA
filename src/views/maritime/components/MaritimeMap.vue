@@ -55,7 +55,6 @@ interface LayerSwitchItem {
 const layerItems: LayerSwitchItem[] = [
   { key: 'vessels', label: '船只', color: 'var(--mar-green)' },
   { key: 'radar', label: '雷达', color: 'var(--mar-amber)' },
-  { key: 'districts', label: '区划', color: '#5da8dc' },
   { key: 'eo', label: '光电', color: '#c084fc' },
   { key: 'zones', label: '区域', color: '#f5b84b' },
 ]

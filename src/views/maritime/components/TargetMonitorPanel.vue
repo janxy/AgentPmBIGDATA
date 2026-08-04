@@ -35,21 +35,6 @@
           </button>
         </div>
       </div>
-      <div v-else-if="activeTab === 'radar'" class="tm-filter__group">
-        <span class="tm-filter__label">来源</span>
-        <div class="tm-filter__chips">
-          <button
-            v-for="option in radarSourceOptions"
-            :key="option.value"
-            type="button"
-            class="tm-chip"
-            :class="{ 'is-active': radarSourceFilter.includes(option.value) }"
-            @click="toggleRadarSource(option.value)"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
       <div v-if="activeTab === 'vessel'" class="tm-filter__group">
         <span class="tm-filter__label">类型</span>
         <div class="tm-filter__chips">
@@ -204,26 +189,23 @@
         </template>
         <template v-else-if="activeTab === 'radar'">
           <button
-            v-for="contact in pagedRadarContacts"
-            :key="contact.id"
+            v-for="station in pagedRadarStations"
+            :key="station.id"
             type="button"
             class="tm-row"
-            :class="{ 'is-selected': mapStore.selectedCategoryId === contact.id }"
-            @click="handleCategoryClick('radar', contact.id)"
+            :class="{ 'is-selected': mapStore.selectedCategoryId === station.id }"
+            @click="handleCategoryClick('radar', station.id)"
           >
             <span class="tm-row__top">
-              <strong class="tm-row__name">{{ contact.name }}</strong>
-              <span class="tm-row__mmsi">{{ contact.id }}</span>
-              <span class="tm-row__time">{{ formatTime(contact.lastUpdate) }}</span>
+              <strong class="tm-row__name">{{ station.name }}</strong>
+              <span class="tm-row__mmsi">{{ station.id }}</span>
+              <span class="tm-row__time">{{ formatTime(station.lastUpdate) }}</span>
             </span>
             <span class="tm-row__bottom">
-              <span class="tm-row__nav">{{ contact.speed.toFixed(1) }} kn · {{ contact.course.toFixed(1) }}°</span>
+              <span class="tm-row__nav">覆盖 {{ station.radiusKm.toFixed(0) }} km</span>
               <span class="tm-row__sources">
-                <i class="tm-row__source" :class="`is-${contact.source}`">
-                  {{ TARGET_SOURCE_LABELS[contact.source] }}
-                </i>
-                <i class="tm-row__source" :class="contact.tracking ? 'is-tracked' : 'is-lost'">
-                  {{ contact.tracking ? '跟踪中' : '丢失' }}
+                <i class="tm-row__source" :class="station.online ? 'is-device-online' : 'is-device-offline'">
+                  {{ station.online ? '在线' : '离线' }}
                 </i>
               </span>
             </span>
@@ -332,10 +314,10 @@ import './target-monitor.css'
 import { Loading, Search, Ship } from '@element-plus/icons-vue'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
-import { EO_DEVICES, FENCE_ZONES, RADAR_CONTACTS } from '@/mock/maritime/monitor'
+import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
+import { RADAR_STATIONS } from '@/utils/maritimeGeography'
 import {
   MONITOR_CATEGORY_LABELS,
-  RADAR_SOURCE_OPTIONS,
   TARGET_SOURCE_LABELS,
   TARGET_SOURCE_OPTIONS,
   TARGET_TYPE_LABELS,
@@ -354,7 +336,6 @@ const monitorTabs: Array<{ value: MonitorCategory; label: string }> = [
 ]
 
 const activeTab = ref<MonitorCategory>('vessel')
-const radarSourceFilter = ref<TargetSource[]>([])
 const radarKeyword = ref('')
 const eoKeyword = ref('')
 const fenceKeyword = ref('')
@@ -362,7 +343,6 @@ const categoryPage = ref(1)
 const categoryPageSize = ref(10)
 
 const sourceOptions = TARGET_SOURCE_OPTIONS.map((value) => ({ value, label: TARGET_SOURCE_LABELS[value] }))
-const radarSourceOptions = RADAR_SOURCE_OPTIONS.map((value) => ({ value, label: TARGET_SOURCE_LABELS[value] }))
 const typeOptions = TARGET_TYPE_OPTIONS.map((value) => ({ value, label: TARGET_TYPE_LABELS[value] }))
 
 const keyword = ref(targetsStore.filter.keyword)
@@ -380,12 +360,8 @@ function matchesKeyword(value: string, fields: string[]) {
   return !kw || fields.some((field) => field.toLowerCase().includes(kw))
 }
 
-const filteredRadarContacts = computed(() =>
-  RADAR_CONTACTS.filter(
-    (contact) =>
-      (!radarSourceFilter.value.length || radarSourceFilter.value.includes(contact.source)) &&
-      matchesKeyword(radarKeyword.value, [contact.name, contact.id]),
-  ),
+const filteredRadarStations = computed(() =>
+  RADAR_STATIONS.filter((station) => matchesKeyword(radarKeyword.value, [station.name, station.id])),
 )
 
 const filteredEoDevices = computed(() =>
@@ -397,7 +373,7 @@ const filteredFenceZones = computed(() =>
 )
 
 const panelTotal = computed(() => {
-  if (activeTab.value === 'radar') return filteredRadarContacts.value.length
+  if (activeTab.value === 'radar') return filteredRadarStations.value.length
   if (activeTab.value === 'eo') return filteredEoDevices.value.length
   if (activeTab.value === 'fence') return filteredFenceZones.value.length
   return targetsStore.filteredTotal
@@ -407,14 +383,14 @@ const emptyText = computed(() => `暂无符合条件的${MONITOR_CATEGORY_LABELS
 
 const tabCounts = computed(() => ({
   vessel: targetsStore.targets.length,
-  radar: RADAR_CONTACTS.length,
+  radar: RADAR_STATIONS.length,
   eo: EO_DEVICES.length,
   fence: FENCE_ZONES.length,
 }))
 
 const hasActiveFilter = computed(() => {
   if (activeTab.value === 'radar') {
-    return radarSourceFilter.value.length > 0 || radarKeyword.value.trim().length > 0
+    return radarKeyword.value.trim().length > 0
   }
   if (activeTab.value === 'eo') return eoKeyword.value.trim().length > 0
   if (activeTab.value === 'fence') return fenceKeyword.value.trim().length > 0
@@ -437,14 +413,12 @@ const filteredSourceCounts = computed(() => {
 })
 
 const radarStats = computed(() => {
-  const list = filteredRadarContacts.value
+  const list = filteredRadarStations.value
   return [
-    { value: list.length, label: '雷达目标' },
-    { value: list.filter((c) => c.source === 'phased').length, label: '相控阵' },
-    { value: list.filter((c) => c.source === 'xband1').length, label: 'X波段1' },
-    { value: list.filter((c) => c.source === 'xband2').length, label: 'X波段2' },
-    { value: list.filter((c) => c.tracking).length, label: '跟踪中' },
-    { value: list.filter((c) => !c.tracking).length, label: '丢失' },
+    { value: list.length, label: '雷达站' },
+    { value: list.filter((s) => s.online).length, label: '在线' },
+    { value: list.filter((s) => !s.online).length, label: '离线' },
+    { value: list.reduce((sum, s) => sum + s.radiusKm, 0), label: '覆盖 km' },
   ]
 })
 
@@ -479,9 +453,9 @@ const currentPageSize = computed(() =>
   activeTab.value === 'vessel' ? targetsStore.pageSize : categoryPageSize.value,
 )
 
-const pagedRadarContacts = computed(() => {
+const pagedRadarStations = computed(() => {
   const start = (currentPage.value - 1) * categoryPageSize.value
-  return filteredRadarContacts.value.slice(start, start + categoryPageSize.value)
+  return filteredRadarStations.value.slice(start, start + categoryPageSize.value)
 })
 
 const pagedEoDevices = computed(() => {
@@ -505,12 +479,6 @@ function toggleSource(value: TargetSource) {
   })
 }
 
-function toggleRadarSource(value: TargetSource) {
-  const current = radarSourceFilter.value
-  radarSourceFilter.value = current.includes(value) ? current.filter((v) => v !== value) : [...current, value]
-  categoryPage.value = 1
-}
-
 function toggleType(value: TargetType) {
   const current = targetsStore.filter.types
   targetsStore.applyFilter({
@@ -521,7 +489,6 @@ function toggleType(value: TargetType) {
 function clearFilter() {
   if (activeTab.value === 'radar') {
     radarKeyword.value = ''
-    radarSourceFilter.value = []
   } else if (activeTab.value === 'eo') {
     eoKeyword.value = ''
   } else if (activeTab.value === 'fence') {
@@ -561,10 +528,10 @@ function handleCategoryClick(category: MonitorCategory, id: string) {
   targetsStore.clearSelection()
   mapStore.selectMonitorItem(category, id)
   if (category === 'radar') {
-    const contact = RADAR_CONTACTS.find((item) => item.id === id)
-    if (!contact) return
+    const station = RADAR_STATIONS.find((item) => item.id === id)
+    if (!station) return
     mapStore.showLayer('radar')
-    mapStore.focusPoint({ lon: contact.lon, lat: contact.lat }, Math.max(2.8, mapStore.zoom))
+    mapStore.focusPoint({ lon: station.lon, lat: station.lat }, Math.max(2.8, mapStore.zoom))
     return
   }
   if (category === 'eo') {
