@@ -130,6 +130,8 @@ onBeforeUnmount(() => {
   grid-template-columns: 430px minmax(0, 1fr) minmax(0, 240px) auto auto;
   align-items: center;
   padding: 0 8px 0 24px;
+  overflow: hidden;
+  isolation: isolate;
   color: var(--mar-text);
   background:
     linear-gradient(90deg, rgba(12, 42, 76, 0.55), rgba(8, 26, 48, 0.72), rgba(12, 42, 76, 0.55)),
@@ -137,6 +139,53 @@ onBeforeUnmount(() => {
   border: 1px solid var(--mar-line);
   border-radius: 8px;
   box-shadow: 0 0 18px rgba(0, 160, 255, 0.12) inset;
+}
+
+.maritime-header-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 8px;
+  background:
+    radial-gradient(ellipse at 18% 40%, rgba(56, 198, 255, 0.16), transparent 55%),
+    radial-gradient(ellipse at 82% 45%, rgba(45, 212, 191, 0.12), transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.06), transparent 60%);
+  animation: header-bg-breathe 5s ease-in-out infinite;
+}
+
+.maritime-header-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 26%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(56, 198, 255, 0.14), transparent);
+  transform: translateX(-130%) skewX(-16deg);
+  animation: header-scan 6s ease-in-out infinite;
+}
+
+@keyframes header-bg-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes header-scan {
+  0% {
+    transform: translateX(-130%) skewX(-16deg);
+  }
+  55%,
+  100% {
+    transform: translateX(540%) skewX(-16deg);
+  }
 }
 
 .header-brand {
@@ -148,6 +197,7 @@ onBeforeUnmount(() => {
 }
 
 .brand-title {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -155,21 +205,108 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: 2px;
   white-space: nowrap;
+  background: linear-gradient(90deg, #f0f9ff 0%, #8ee6ff 25%, #38c6ff 48%, #8ee6ff 72%, #f0f9ff 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: brand-title-flow 6s linear infinite;
 }
 
 .brand-dot {
+  position: relative;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--mar-accent);
-  box-shadow: 0 0 10px var(--mar-accent);
+  box-shadow: 0 0 10px var(--mar-accent), 0 0 22px rgba(56, 198, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.brand-dot::before,
+.brand-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(56, 198, 255, 0.8);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: brand-ping 2.4s ease-out infinite;
+}
+
+.brand-dot::after {
+  animation-delay: 1.2s;
+}
+
+.brand-title::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 0;
+  bottom: -5px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--mar-accent), transparent);
+  animation: brand-beam 3s ease-in-out infinite;
 }
 
 .brand-scene {
-  color: var(--mar-text-dim);
+  background: linear-gradient(90deg, #9fc4e6, #e8f6ff, #6fc4ea);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
   font-size: 13px;
   letter-spacing: 1px;
   white-space: nowrap;
+  animation: brand-scene-flow 4s linear infinite;
+}
+
+@keyframes brand-title-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes brand-scene-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes brand-beam {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scaleX(0.55);
+    transform-origin: left center;
+  }
+  50% {
+    opacity: 0.95;
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+}
+
+@keyframes brand-ping {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.85;
+  }
+  70%,
+  100% {
+    transform: translate(-50%, -50%) scale(3.2);
+    opacity: 0;
+  }
 }
 
 .header-status {
