@@ -17,6 +17,7 @@
           @refresh="handleRefresh"
           @toggle-fullscreen="toggleFullscreen"
           @open-data-admin="uiStore.setDataAdminOpen(true)"
+          @simulate-alarm="handleSimulateAlarm"
         />
 
         <TargetMonitorPanel class="maritime-left" />
@@ -31,6 +32,13 @@
         <DataAdminPanel v-if="uiStore.dataAdminOpen" />
       </div>
     </div>
+    <div
+      v-if="alarmFlashCount > 0"
+      :key="alarmFlashCount"
+      class="maritime-alarm-flash"
+      aria-hidden="true"
+      @animationend="alarmFlashCount = 0"
+    />
   </div>
 </template>
 
@@ -47,7 +55,7 @@ import TargetDetailPanel from './components/TargetDetailPanel.vue'
 import AlarmScrollBar from './components/AlarmScrollBar.vue'
 import DataAdminPanel from './components/DataAdminPanel.vue'
 import { useMaritimeScreen } from '@/composables/useMaritimeScreen'
-import { onBeforeUnmount, onMounted, computed } from 'vue'
+import { onBeforeUnmount, onMounted, computed, ref } from 'vue'
 import { subscribeMaritimeUpdates } from '@/api/maritime'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import { useMaritimeAlarmsStore } from '@/stores/maritimeAlarms'
@@ -63,6 +71,11 @@ const sourceCounts = computed(() => targetsStore.sourceCounts)
 const alarmPendingCount = computed(() => alarmsStore.pendingCount)
 const refreshing = computed(() => targetsStore.refreshing || alarmsStore.refreshing)
 const dataStatus = computed(() => targetsStore.errorMessage || alarmsStore.errorMessage)
+const alarmFlashCount = ref(0)
+
+const handleSimulateAlarm = () => {
+  alarmFlashCount.value += 1
+}
 
 const handleRefresh = async () => {
   await Promise.all([targetsStore.refresh(), alarmsStore.refresh()])
@@ -181,6 +194,40 @@ onBeforeUnmount(() => {
 @media (max-width: 1400px) {
   .maritime-stage--compact .maritime-grid {
     grid-template-columns: 272px minmax(0, 1fr);
+  }
+}
+
+.maritime-alarm-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 42, 42, 0.72), rgba(255, 0, 0, 0.4));
+  mix-blend-mode: screen;
+  animation: maritime-alarm-flash 1.2s ease-out both;
+}
+
+@keyframes maritime-alarm-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.78;
+  }
+  26% {
+    opacity: 0.12;
+  }
+  42% {
+    opacity: 0.62;
+  }
+  56% {
+    opacity: 0.08;
+  }
+  78% {
+    opacity: 0.36;
+  }
+  100% {
+    opacity: 0;
   }
 }
 </style>

@@ -25,7 +25,7 @@ export const useMaritimeAlarmsStore = defineStore('maritimeAlarms', {
         .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     },
     recentAlarms(): AlarmEvent[] {
-      return this.filteredAlarms.slice(0, 20)
+      return this.filteredAlarms.slice(0, 16)
     },
     pendingCount(): number {
       return this.alarms.filter((a) => a.status === 'pending').length

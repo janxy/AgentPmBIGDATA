@@ -39,11 +39,6 @@
       </div>
     </div>
 
-    <div class="header-time">
-      <strong>{{ timeText }}</strong>
-      <span>{{ dateText }}</span>
-    </div>
-
     <span v-if="dataStatus" class="header-message" role="status">{{ dataStatus }}</span>
 
     <div class="header-actions">
@@ -69,6 +64,15 @@
           <el-icon><FullScreen /></el-icon>
         </button>
       </el-tooltip>
+      <button type="button" class="header-btn header-btn--alarm" aria-label="模拟告警效果" @click="emit('simulate-alarm')">
+        <el-icon><Warning /></el-icon>
+        <span>模拟告警效果</span>
+      </button>
+    </div>
+
+    <div class="header-time">
+      <strong>{{ timeText }}</strong>
+      <span>{{ dateText }}</span>
     </div>
   </header>
 </template>
@@ -78,7 +82,7 @@
  * 大屏顶部区域：平台标题、场景标签、状态摘要、系统时间与全屏/刷新入口。
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { FullScreen, RefreshRight, Setting } from '@element-plus/icons-vue'
+import { FullScreen, RefreshRight, Setting, Warning } from '@element-plus/icons-vue'
 
 defineProps<{
   total: number
@@ -93,6 +97,7 @@ const emit = defineEmits<{
   refresh: []
   'toggle-fullscreen': []
   'open-data-admin': []
+  'simulate-alarm': []
 }>()
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -122,9 +127,9 @@ onBeforeUnmount(() => {
 .maritime-header-bar {
   position: relative;
   display: grid;
-  grid-template-columns: 430px minmax(0, 1fr) 260px minmax(0, 240px) 104px;
+  grid-template-columns: 430px minmax(0, 1fr) minmax(0, 240px) auto auto;
   align-items: center;
-  padding: 0 18px 0 24px;
+  padding: 0 8px 0 24px;
   color: var(--mar-text);
   background:
     linear-gradient(90deg, rgba(12, 42, 76, 0.55), rgba(8, 26, 48, 0.72), rgba(12, 42, 76, 0.55)),
@@ -139,6 +144,7 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: 14px;
   min-width: 0;
+  grid-column: 1;
 }
 
 .brand-title {
@@ -172,6 +178,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 4px;
   min-width: 0;
+  grid-column: 2;
 }
 
 .status-item {
@@ -208,6 +215,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: flex-end;
   min-width: 0;
+  margin-left: 16px;
+  grid-column: 5;
 }
 
 .header-time strong {
@@ -228,6 +237,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  grid-column: 4;
 }
 
 .header-message {
@@ -243,6 +253,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(245, 184, 75, 0.35);
   border-radius: 6px;
   justify-self: end;
+  grid-column: 3;
 }
 
 .header-btn {
@@ -282,5 +293,27 @@ onBeforeUnmount(() => {
 
 .header-btn .el-icon {
   font-size: 18px;
+}
+
+.header-btn--alarm {
+  gap: 6px;
+  width: auto;
+  padding: 0 12px;
+  color: var(--mar-red);
+  font-size: 13px;
+  white-space: nowrap;
+  background: rgba(255, 107, 107, 0.1);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+.header-btn--alarm:hover {
+  color: #fff;
+  border-color: var(--mar-red);
+  background: rgba(255, 107, 107, 0.28);
+  box-shadow: 0 0 14px rgba(255, 107, 107, 0.35);
+}
+
+.header-btn--alarm .el-icon {
+  font-size: 17px;
 }
 </style>

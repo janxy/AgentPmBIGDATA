@@ -41,7 +41,7 @@
     </div>
 
     <div class="alarm-bar__actions">
-      <span class="alarm-bar__meta">最近 20 条</span>
+      <span class="alarm-bar__meta">最近 16 条</span>
       <button type="button" class="alarm-bar__more" @click="uiStore.setAlarmListOpen(true)">
         <el-icon><List /></el-icon>
         <span>查看全部</span>
@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 /**
- * 底部告警滚动条：最新 20 条告警时间流滚动、地图定位与告警详情入口。
+ * 底部告警两行流：最新 16 条告警两行排布、地图定位与告警详情入口。
  */
 import { computed } from 'vue'
 import { Bell, List } from '@element-plus/icons-vue'
@@ -110,7 +110,7 @@ function shortTime(value: string) {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 190px;
+  width: 150px;
   padding: 0 16px;
   flex-shrink: 0;
   color: var(--mar-accent);
@@ -163,7 +163,7 @@ function shortTime(value: string) {
 }
 
 .alarm-ticker__viewport {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   flex: 1;
   min-width: 0;
@@ -172,18 +172,21 @@ function shortTime(value: string) {
 }
 
 .alarm-ticker__track {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: max-content;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 40px);
+  gap: 8px 10px;
+  width: 100%;
 }
 
 .alarm-ticker__item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 40px;
-  padding: 0 14px;
+  padding: 0 8px;
+  min-width: 0;
   color: var(--mar-text-dim);
   font-size: 12px;
   white-space: nowrap;
@@ -191,13 +194,27 @@ function shortTime(value: string) {
   background: rgba(13, 34, 58, 0.6);
   border: 1px solid var(--mar-line-soft);
   border-radius: 6px;
-  flex-shrink: 0;
 }
 
 .alarm-ticker__item:hover {
   color: var(--mar-text);
   border-color: var(--mar-line);
   background: rgba(56, 198, 255, 0.12);
+}
+
+.alarm-ticker__item.is-urgent {
+  background: rgba(255, 107, 107, 0.16);
+  border-color: rgba(255, 107, 107, 0.45);
+}
+
+.alarm-ticker__item.is-important {
+  background: rgba(245, 184, 75, 0.14);
+  border-color: rgba(245, 184, 75, 0.42);
+}
+
+.alarm-ticker__item.is-normal {
+  background: rgba(53, 224, 168, 0.12);
+  border-color: rgba(53, 224, 168, 0.4);
 }
 
 .alarm-ticker__item.is-new {
@@ -227,14 +244,18 @@ function shortTime(value: string) {
 }
 
 .alarm-ticker__item strong {
+  min-width: 0;
   color: var(--mar-text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .alarm-ticker__item time {
   color: var(--mar-text-faint);
   font-size: 11px;
+  flex-shrink: 0;
 }
 
 .alarm-bar__quiet {
