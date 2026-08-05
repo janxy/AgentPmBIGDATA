@@ -18,6 +18,15 @@
       <button
         type="button"
         class="vt-action"
+        :class="{ 'is-active': uiStore.mapExpanded }"
+        @click="handleMapExpand"
+      >
+        <el-icon><Expand v-if="!uiStore.mapExpanded" /><Fold v-else /></el-icon>
+        <span>{{ uiStore.mapExpanded ? '退出海图最大化' : '海图最大化' }}</span>
+      </button>
+      <button
+        type="button"
+        class="vt-action"
         :class="{ 'is-active': mapStore.mode === 'pick' }"
         @click="togglePick"
       >
@@ -33,9 +42,9 @@
         <el-icon><Odometer /></el-icon>
         <span>测距</span>
       </button>
-      <button type="button" class="vt-action" @click="toggleFullscreen">
-        <el-icon><FullScreen /></el-icon>
-        <span>{{ fullscreen ? '退出全屏' : '全屏' }}</span>
+      <button type="button" class="vt-action" @click="handleVesselSelect">
+        <el-icon><Crop /></el-icon>
+        <span>船只框选</span>
       </button>
     </section>
 
@@ -64,17 +73,17 @@
 
 <script setup lang="ts">
 /**
- * 海图右侧视图工具：复位视角、坐标拾取、测距与全屏。
+ * 海图右侧视图工具：复位视角、海图最大化、坐标拾取、测距与船只框选。
  */
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
-import { Aim, Coordinate, FullScreen, Odometer, RefreshLeft } from '@element-plus/icons-vue'
+import { Aim, Coordinate, Crop, Expand, Fold, Odometer, RefreshLeft } from '@element-plus/icons-vue'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
-import { useMaritimeScreen } from '@/composables/useMaritimeScreen'
+import { useMaritimeUiStore } from '@/stores/maritimeUi'
 
 const mapStore = useMaritimeMapViewStore()
-const { fullscreen, toggleFullscreen } = useMaritimeScreen()
+const uiStore = useMaritimeUiStore()
 
 const pickedText = computed(() => {
   const point = mapStore.pickedPoint
@@ -86,6 +95,14 @@ function handleResetView() {
   if (!mapStore.dataReady) return
   mapStore.resetView()
   ElMessage.success('视角已复位')
+}
+
+function handleVesselSelect() {
+  ElMessage.info('正在研发中')
+}
+
+function handleMapExpand() {
+  uiStore.toggleMapExpanded()
 }
 
 function togglePick() {

@@ -5,7 +5,10 @@
       :class="{ 'maritime-stage--compact': isCompact }"
       :style="{ transform: `translate(-50%, -50%) scale(${scale})` }"
     >
-      <div class="maritime-grid">
+      <div
+        class="maritime-grid"
+        :class="{ 'maritime-grid--expanded': uiStore.mapExpanded }"
+      >
         <MaritimeHeader
           class="maritime-header"
           :total="totalTargets"
@@ -198,6 +201,22 @@ onBeforeUnmount(() => {
   .maritime-stage--compact .maritime-grid {
     grid-template-columns: 272px minmax(0, 1fr);
   }
+}
+
+/* 海图最大化：仅保留顶部状态区与地图，隐藏两侧面板和底部告警 */
+.maritime-grid--expanded,
+.maritime-stage--compact .maritime-grid--expanded {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 76px minmax(0, 1fr);
+  grid-template-areas:
+    'header'
+    'map';
+}
+
+.maritime-grid--expanded .maritime-left,
+.maritime-grid--expanded .maritime-right,
+.maritime-grid--expanded .maritime-alarm {
+  display: none;
 }
 
 .maritime-alarm-flash {

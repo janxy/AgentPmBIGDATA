@@ -9,6 +9,7 @@ export const useMaritimeUiStore = defineStore('maritimeUi', () => {
   const alarmListOpen = ref(false)
   const dataAdminOpen = ref(false)
   const lawEnforceOpen = ref(false)
+  const mapExpanded = ref(false)
 
   function openDetail() {
     detailOpen.value = true
@@ -46,6 +47,10 @@ export const useMaritimeUiStore = defineStore('maritimeUi', () => {
     lawEnforceOpen.value = value
   }
 
+  function toggleMapExpanded() {
+    mapExpanded.value = !mapExpanded.value
+  }
+
   return {
     detailOpen,
     leftCollapsed,
@@ -53,6 +58,7 @@ export const useMaritimeUiStore = defineStore('maritimeUi', () => {
     alarmListOpen,
     dataAdminOpen,
     lawEnforceOpen,
+    mapExpanded,
     openDetail,
     closeDetail,
     toggleLeft,
@@ -62,5 +68,6 @@ export const useMaritimeUiStore = defineStore('maritimeUi', () => {
     setAlarmListOpen,
     setDataAdminOpen,
     setLawEnforceOpen,
+    toggleMapExpanded,
   }
 })
