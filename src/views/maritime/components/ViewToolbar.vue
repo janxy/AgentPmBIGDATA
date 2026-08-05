@@ -6,44 +6,6 @@
     </header>
 
     <section class="vt-group">
-      <h3 class="vt-group__title">图层</h3>
-      <div class="vt-layer-list">
-        <button
-          v-for="item in layerItems"
-          :key="item.key"
-          type="button"
-          class="vt-layer"
-          :class="{ 'is-active': mapStore.layers[item.key] }"
-          @click="mapStore.toggleLayer(item.key)"
-        >
-          <i class="vt-layer__dot" :style="{ backgroundColor: item.color }" />
-          <span>{{ item.label }}</span>
-          <i class="vt-layer__check" :class="{ 'is-on': mapStore.layers[item.key] }" />
-        </button>
-      </div>
-    </section>
-
-    <section class="vt-group">
-      <h3 class="vt-group__title">目标样式</h3>
-      <div class="vt-field">
-        <span class="vt-field__label">标记大小</span>
-        <div class="vt-segment">
-          <button
-            v-for="item in markerOptions"
-            :key="item.value"
-            type="button"
-            class="vt-segment__item"
-            :class="{ 'is-active': mapStore.targetStyle.markerSize === item.value }"
-            @click="mapStore.setMarkerSize(item.value)"
-          >
-            {{ item.label }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="vt-group">
-      <h3 class="vt-group__title">工具</h3>
       <button
         type="button"
         class="vt-action"
@@ -97,15 +59,12 @@
       </div>
     </section>
 
-    <footer class="vt-foot">
-      <span class="vt-foot__hint">图层与样式即时生效</span>
-    </footer>
   </aside>
 </template>
 
 <script setup lang="ts">
 /**
- * 海图右侧视图工具：图层、目标样式、复位视角、坐标拾取、测距与全屏。
+ * 海图右侧视图工具：复位视角、坐标拾取、测距与全屏。
  */
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -113,26 +72,6 @@ import 'element-plus/es/components/message/style/css'
 import { Aim, Coordinate, FullScreen, Odometer, RefreshLeft } from '@element-plus/icons-vue'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeScreen } from '@/composables/useMaritimeScreen'
-import type { LayerState, MarkerSize } from '@/types/maritime'
-
-interface LayerItem {
-  key: keyof LayerState
-  label: string
-  color: string
-}
-
-const layerItems: LayerItem[] = [
-  { key: 'vessels', label: '船只', color: 'var(--mar-green)' },
-  { key: 'radar', label: '雷达', color: 'var(--mar-amber)' },
-  { key: 'eo', label: '光电', color: '#c084fc' },
-  { key: 'zones', label: '区域', color: '#f5b84b' },
-]
-
-const markerOptions: Array<{ value: MarkerSize; label: string }> = [
-  { value: 'small', label: '小' },
-  { value: 'medium', label: '中' },
-  { value: 'large', label: '大' },
-]
 
 const mapStore = useMaritimeMapViewStore()
 const { fullscreen, toggleFullscreen } = useMaritimeScreen()
@@ -220,107 +159,6 @@ function clearMeasure() {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.vt-group__title {
-  margin: 0;
-  color: var(--mar-text-dim);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 1px;
-}
-
-.vt-layer-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.vt-layer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 8px;
-  color: var(--mar-text-dim);
-  font-size: 12px;
-  cursor: pointer;
-  background: rgba(13, 34, 58, 0.5);
-  border: 1px solid var(--mar-line-soft);
-  border-radius: 4px;
-}
-
-.vt-layer:hover {
-  color: var(--mar-text);
-  border-color: var(--mar-line);
-}
-
-.vt-layer.is-active {
-  color: var(--mar-text);
-  background: rgba(56, 198, 255, 0.1);
-  border-color: var(--mar-line);
-}
-
-.vt-layer__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.vt-layer__check {
-  width: 8px;
-  height: 8px;
-  margin-left: auto;
-  border: 1px solid var(--mar-text-faint);
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.vt-layer__check.is-on {
-  background: var(--mar-accent);
-  border-color: var(--mar-accent);
-  box-shadow: 0 0 6px rgba(56, 198, 255, 0.55);
-}
-
-.vt-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.vt-field__label {
-  color: var(--mar-text-dim);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.vt-segment {
-  display: flex;
-  gap: 4px;
-}
-
-.vt-segment__item {
-  min-width: 38px;
-  height: 26px;
-  padding: 0 8px;
-  color: var(--mar-text-dim);
-  font-size: 12px;
-  cursor: pointer;
-  background: rgba(13, 34, 58, 0.5);
-  border: 1px solid var(--mar-line-soft);
-  border-radius: 4px;
-}
-
-.vt-segment__item:hover {
-  color: var(--mar-text);
-}
-
-.vt-segment__item.is-active {
-  color: var(--mar-accent);
-  border-color: rgba(56, 198, 255, 0.6);
-  background: rgba(56, 198, 255, 0.14);
 }
 
 .vt-action {
@@ -414,13 +252,4 @@ function clearMeasure() {
   opacity: 0.5;
 }
 
-.vt-foot {
-  padding-top: 8px;
-  border-top: 1px solid var(--mar-line-soft);
-}
-
-.vt-foot__hint {
-  color: var(--mar-text-faint);
-  font-size: 11px;
-}
 </style>

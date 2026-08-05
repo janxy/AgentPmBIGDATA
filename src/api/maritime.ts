@@ -4,8 +4,14 @@ import { subscribeMaritimeUpdates as subscribeMockMaritimeUpdates } from '@/mock
 import type {
   AlarmEvent,
   AlarmLevel,
+  AlarmType,
   DisposeStatus,
+  DispatchOrder,
+  DispatchOutcome,
+  DispatchOverview,
+  DispatchStatus,
   FusionTarget,
+  LawDispatchRecommend,
   MaritimeStats,
   MaritimeStatus,
   PageResult,
@@ -24,6 +30,16 @@ interface AlarmListQuery {
   page?: number
   pageSize?: number
   levels?: AlarmLevel[]
+}
+
+interface LawDispatchListQuery {
+  page?: number
+  pageSize?: number
+  scope?: 'current' | 'history'
+  statuses?: DispatchStatus[]
+  outcomes?: DispatchOutcome[]
+  types?: AlarmType[]
+  keyword?: string
 }
 
 function buildQuery(params: Record<string, string | number | boolean | string[] | undefined | null>): string {
@@ -86,6 +102,68 @@ export function fetchAlarms(query: AlarmListQuery = {}): Promise<PageResult<Alar
     levels: query.levels,
   })
   return request<PageResult<AlarmEvent>>(`/api/maritime/alarms${qs}`)
+}
+
+/** 查询智能执法概览统计。 */
+export function fetchLawDispatchOverview(): Promise<DispatchOverview> {
+  return request<DispatchOverview>('/api/maritime/law/overview')
+}
+
+/** 分页查询智能执法派单，scope 区分当前/历史。 */
+export function fetchLawDispatchOrders(query: LawDispatchListQuery = {}): Promise<PageResult<DispatchOrder>> {
+  const qs = buildQuery({
+    page: query.page ?? 1,
+    pageSize: query.pageSize ?? 10,
+    scope: query.scope,
+    statuses: query.statuses,
+    outcomes: query.outcomes,
+    types: query.types,
+    keyword: query.keyword,
+  })
+  return request<PageResult<DispatchOrder>>(`/api/maritime/law/orders${qs}`)
+}
+
+/** 查询派单详情。 */
+export function fetchLawDispatchDetail(id: string): Promise<DispatchOrder> {
+  return request<DispatchOrder>(`/api/maritime/law/order/detail?id=${encodeURIComponent(id)}`)
+}
+
+/** 获取智能派单推荐：告警等级优先、执法船就近空闲。 */
+export function fetchLawDispatchRecommend(alarmId?: string): Promise<LawDispatchRecommend> {
+  const qs = alarmId ? `?alarmId=${encodeURIComponent(alarmId)}` : ''
+  return request<LawDispatchRecommend>(`/api/maritime/law/recommend${qs}`)
+}
+
+/** 确认创建智能派单。 */
+export function createLawDispatch(payload: { alarmId?: string; vesselId?: string }): Promise<DispatchOrder> {
+  return request<DispatchOrder>('/api/maritime/law/dispatch', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** 催办进行中的派单。 */
+export function urgeLawDispatch(id: string): Promise<DispatchOrder> {
+  return request<DispatchOrder>('/api/maritime/law/urge', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
+}
+
+/** 推进派单状态至下一阶段。 */
+export function advanceLawDispatch(id: string): Promise<DispatchOrder> {
+  return request<DispatchOrder>('/api/maritime/law/advance', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  })
+}
+
+/** 结束派单并登记处置结果，转办时自动生成新派单。 */
+export function finishLawDispatch(id: string, outcome: DispatchOutcome, note = ''): Promise<DispatchOrder> {
+  return request<DispatchOrder>('/api/maritime/law/finish', {
+    method: 'POST',
+    body: JSON.stringify({ id, outcome, note }),
+  })
 }
 
 /** 更新告警处置状态，后端按状态流转规则校验。 */

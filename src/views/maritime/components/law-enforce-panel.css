@@ -1,0 +1,228 @@
+.law-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 10, 20, 0.74);
+  --mar-panel: rgba(8, 22, 40, 0.97);
+  --mar-panel-strong: rgba(10, 28, 50, 0.99);
+  --mar-line: rgba(64, 157, 255, 0.28);
+  --mar-line-soft: rgba(64, 157, 255, 0.14);
+  --mar-text: #e8f3ff;
+  --mar-text-dim: #8fb0d0;
+  --mar-text-faint: #5f7f9f;
+  --mar-accent: #38c6ff;
+  --mar-amber: #f5b84b;
+  --mar-red: #ff6b6b;
+  --mar-green: #35e0a8;
+}
+
+.law-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  width: 1040px;
+  height: 640px;
+  overflow: hidden;
+  color: var(--mar-text);
+  background: var(--mar-panel);
+  border: 1px solid var(--mar-line);
+  border-radius: 10px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+}
+
+.law-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px 0 20px;
+  background: linear-gradient(90deg, rgba(56, 198, 255, 0.16), rgba(45, 212, 191, 0.08), transparent 72%);
+  border-bottom: 1px solid var(--mar-line-soft);
+}
+
+.law-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mar-accent);
+}
+
+.law-title .el-icon {
+  font-size: 22px;
+}
+
+.law-title h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.law-title span {
+  display: block;
+  margin-top: 2px;
+  color: var(--mar-text-faint);
+  font-size: 12px;
+}
+
+.law-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--mar-text-dim);
+  background: transparent;
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.law-close:hover {
+  color: var(--mar-text);
+  border-color: var(--mar-line);
+}
+
+.law-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 14px 16px 16px;
+  gap: 12px;
+}
+
+.law-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.law-tabs button {
+  height: 34px;
+  padding: 0 18px;
+  color: var(--mar-text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  background: rgba(13, 34, 58, 0.55);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 6px 6px 0 0;
+}
+
+.law-tabs button:hover {
+  color: var(--mar-text);
+}
+
+.law-tabs button.is-active {
+  color: var(--mar-accent);
+  background: rgba(56, 198, 255, 0.12);
+  border-color: var(--mar-line);
+  border-bottom-color: transparent;
+}
+
+.law-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: rgba(4, 16, 30, 0.72);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 8px;
+}
+
+.law-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.law-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 14px;
+  color: var(--mar-text-faint);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  background: rgba(10, 28, 50, 0.98);
+  border-bottom: 1px solid var(--mar-line-soft);
+}
+
+.law-table td {
+  padding: 11px 14px;
+  color: var(--mar-text-dim);
+  border-bottom: 1px solid rgba(64, 157, 255, 0.08);
+}
+
+.law-table tbody tr:hover {
+  background: rgba(56, 198, 255, 0.07);
+}
+
+.law-code {
+  color: var(--mar-accent);
+  font-weight: 600;
+  font-family: 'DIN Alternate', 'PingFang SC', sans-serif;
+}
+
+.law-tag {
+  display: inline-block;
+  padding: 3px 9px;
+  color: var(--mar-text-dim);
+  font-size: 11px;
+  background: rgba(64, 157, 255, 0.1);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 4px;
+}
+
+.law-tag.is-waiting {
+  color: var(--mar-amber);
+  border-color: rgba(245, 184, 75, 0.5);
+  background: rgba(245, 184, 75, 0.1);
+}
+
+.law-tag.is-sailing,
+.law-tag.is-arrived,
+.law-tag.is-handling {
+  color: var(--mar-accent);
+  border-color: rgba(56, 198, 255, 0.4);
+}
+
+.law-tag.is-finished,
+.law-tag--outcome.is-done {
+  color: var(--mar-green);
+  border-color: rgba(53, 224, 168, 0.4);
+  background: rgba(53, 224, 168, 0.1);
+}
+
+.law-tag--outcome.is-timeout {
+  color: var(--mar-red);
+  border-color: rgba(255, 107, 107, 0.4);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.law-tag--outcome.is-transfer {
+  color: var(--mar-amber);
+  border-color: rgba(245, 184, 75, 0.4);
+  background: rgba(245, 184, 75, 0.1);
+}
+
+.law-state {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: var(--mar-text-faint);
+  font-size: 13px;
+  background: rgba(4, 16, 30, 0.5);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 8px;
+}
+
+.law-state--error {
+  color: var(--mar-amber);
+}

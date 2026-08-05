@@ -14,16 +14,8 @@
         <span>目标总数</span>
       </div>
       <div class="status-item">
-        <b>{{ sourceCounts.phased }}</b>
-        <span>相控阵</span>
-      </div>
-      <div class="status-item">
-        <b>{{ sourceCounts.xband1 }}</b>
-        <span>X波段1</span>
-      </div>
-      <div class="status-item">
-        <b>{{ sourceCounts.xband2 }}</b>
-        <span>X波段2</span>
+        <b>{{ sourceCounts.radar }}</b>
+        <span>雷达</span>
       </div>
       <div class="status-item">
         <b>{{ sourceCounts.ais }}</b>
@@ -42,6 +34,12 @@
     <span v-if="dataStatus" class="header-message" role="status">{{ dataStatus }}</span>
 
     <div class="header-actions">
+      <el-tooltip content="智能执法" placement="bottom">
+        <button type="button" class="header-btn header-btn--law" aria-label="智能执法" @click="emit('open-law-enforce')">
+          <el-icon><MagicStick /></el-icon>
+          <span>智能执法</span>
+        </button>
+      </el-tooltip>
       <el-tooltip content="演示数据维护" placement="bottom">
         <button type="button" class="header-btn" aria-label="演示数据维护" @click="emit('open-data-admin')">
           <el-icon><Setting /></el-icon>
@@ -82,11 +80,11 @@
  * 大屏顶部区域：平台标题、场景标签、状态摘要、系统时间与全屏/刷新入口。
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { FullScreen, RefreshRight, Setting, Warning } from '@element-plus/icons-vue'
+import { FullScreen, MagicStick, RefreshRight, Setting, Warning } from '@element-plus/icons-vue'
 
 defineProps<{
   total: number
-  sourceCounts: { phased: number; xband1: number; xband2: number; ais: number; framecode: number }
+  sourceCounts: { radar: number; ais: number; framecode: number }
   alarmCount: number
   fullscreen: boolean
   refreshing: boolean
@@ -96,6 +94,7 @@ defineProps<{
 const emit = defineEmits<{
   refresh: []
   'toggle-fullscreen': []
+  'open-law-enforce': []
   'open-data-admin': []
   'simulate-alarm': []
 }>()
@@ -451,6 +450,28 @@ onBeforeUnmount(() => {
 }
 
 .header-btn--alarm .el-icon {
+  font-size: 17px;
+}
+
+.header-btn--law {
+  gap: 6px;
+  width: auto;
+  padding: 0 12px;
+  color: var(--mar-accent);
+  font-size: 13px;
+  white-space: nowrap;
+  background: rgba(56, 198, 255, 0.12);
+  border-color: rgba(56, 198, 255, 0.45);
+}
+
+.header-btn--law:hover {
+  color: #fff;
+  border-color: var(--mar-accent);
+  background: rgba(56, 198, 255, 0.3);
+  box-shadow: 0 0 14px rgba(56, 198, 255, 0.35);
+}
+
+.header-btn--law .el-icon {
   font-size: 17px;
 }
 </style>

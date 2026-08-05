@@ -16,6 +16,7 @@
           :data-status="dataStatus"
           @refresh="handleRefresh"
           @toggle-fullscreen="toggleFullscreen"
+          @open-law-enforce="uiStore.setLawEnforceOpen(true)"
           @open-data-admin="uiStore.setDataAdminOpen(true)"
           @simulate-alarm="handleSimulateAlarm"
         />
@@ -30,6 +31,7 @@
         <TargetDetailPanel class="maritime-right" />
         <AlarmScrollBar class="maritime-alarm" />
         <DataAdminPanel v-if="uiStore.dataAdminOpen" />
+        <LawEnforcePanel v-if="uiStore.lawEnforceOpen" />
       </div>
     </div>
     <div
@@ -54,6 +56,7 @@ import ViewToolbar from './components/ViewToolbar.vue'
 import TargetDetailPanel from './components/TargetDetailPanel.vue'
 import AlarmScrollBar from './components/AlarmScrollBar.vue'
 import DataAdminPanel from './components/DataAdminPanel.vue'
+import LawEnforcePanel from './components/LawEnforcePanel.vue'
 import { useMaritimeScreen } from '@/composables/useMaritimeScreen'
 import { onBeforeUnmount, onMounted, computed, ref } from 'vue'
 import { subscribeMaritimeUpdates } from '@/api/maritime'

@@ -4,6 +4,13 @@ import type {
   AlarmLevel,
   AlarmType,
   DisposeStatus,
+  DispatchOrder,
+  DispatchOutcome,
+  DispatchStatus,
+  DispatchTimelineEvent,
+  DispatchTimelineType,
+  EnforcementVessel,
+  EnforcementVesselStatus,
   FusionTarget,
   MaritimeStats,
   MaritimeStatus,
@@ -14,6 +21,7 @@ import type {
   TrackPoint,
 } from '@/types/maritime'
 import { JURISDICTION_BOUNDS } from '@/types/maritime'
+import { distanceMeters } from '@/utils/geo'
 
 const TARGET_COUNT = 20
 const TRACK_PER_TARGET = 20
@@ -38,6 +46,8 @@ interface SimulatorState {
   reportSeq: number
   trackSeq: number
   alarmSeq: number
+  dispatchSeq: number
+  timelineSeq: number
 }
 
 function globalSimulatorState(): SimulatorState {
@@ -54,6 +64,8 @@ function globalSimulatorState(): SimulatorState {
       reportSeq: 0,
       trackSeq: 0,
       alarmSeq: 0,
+      dispatchSeq: 0,
+      timelineSeq: 0,
     }
   }
   return record[STATE_KEY] as SimulatorState
@@ -100,10 +112,23 @@ const ALARM_DESCRIPTIONS: Record<AlarmType, string> = {
   zone: '进入敏感区域，请重点关注',
 }
 
+const VESSEL_DEFS: Array<{ name: string; model: string; speed: number }> = [
+  { name: '海巡0102', model: '中型执法船', speed: 26 },
+  { name: '海巡0306', model: '近海巡逻艇', speed: 30 },
+  { name: '海巡0809', model: '高速执法艇', speed: 34 },
+  { name: '中国渔政33001', model: '渔政执法船', speed: 22 },
+  { name: '中国海监5001', model: '海监巡逻船', speed: 24 },
+  { name: '东海救援02', model: '应急救助船', speed: 20 },
+  { name: '海巡0612', model: '近海巡逻艇', speed: 28 },
+  { name: '执法快艇07', model: '高速执法艇', speed: 36 },
+]
+
 const targets: FusionTarget[] = []
 const sourceReports: SourceReport[] = []
 const trackPoints: TrackPoint[] = []
 const alarms: AlarmEvent[] = []
+const vessels: EnforcementVessel[] = []
+const dispatchOrders: DispatchOrder[] = []
 const sim = globalSimulatorState()
 
 /** 可复现的伪随机数生成器，保证演示数据分布稳定。 */
@@ -240,6 +265,234 @@ function generateAlarms() {
   alarms.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
 }
 
+function buildVessels() {
+  const anchors: Array<[number, number]> = [
+    [121.55, 30.98],
+    [121.96, 31.26],
+    [122.22, 30.64],
+    [121.36, 30.42],
+    [122.05, 31.02],
+    [121.78, 31.78],
+    [122.32, 30.86],
+    [121.44, 30.12],
+  ]
+  VESSEL_DEFS.forEach((def, index) => {
+    const anchor = anchors[index]
+    vessels.push({
+      id: `V-${String(index + 1).padStart(2, '0')}`,
+      name: def.name,
+      model: def.model,
+      status: 'idle',
+      lon: anchor[0] + randRange(-0.18, 0.18),
+      lat: anchor[1] + randRange(-0.16, 0.16),
+      speed: Number((def.speed + randRange(-1.5, 1.5)).toFixed(1)),
+      lastUpdate: isoMinutesAgo(Math.floor(randRange(1, 20))),
+    })
+  })
+}
+
+function makeDispatchCode(date: Date, seq: number) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `ZF-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${String(seq).padStart(3, '0')}`
+}
+
+function isoPlusMinutes(iso: string, minutes: number) {
+  return new Date(new Date(iso).getTime() + minutes * 60000).toISOString()
+}
+
+function makeTimelineEvent(type: DispatchTimelineType, time: string, title: string, description: string): DispatchTimelineEvent {
+  return {
+    id: `E-${String(++sim.timelineSeq).padStart(4, '0')}`,
+    type,
+    time,
+    title,
+    description,
+  }
+}
+
+function buildDispatchOrder(options: {
+  alarm: AlarmEvent
+  vessel: EnforcementVessel
+  status: DispatchStatus
+  dispatchTime: string
+  outcome?: DispatchOutcome | null
+  endTime?: string | null
+  note?: string
+  durationMinutes?: number | null
+}): DispatchOrder {
+  const seq = ++sim.dispatchSeq
+  const distanceKm = Number(
+    (distanceMeters({ lon: options.vessel.lon, lat: options.vessel.lat }, { lon: options.alarm.lon, lat: options.alarm.lat }) / 1000).toFixed(1),
+  )
+  const etaMinutes = Math.max(8, Math.round((distanceKm / (options.vessel.speed * 1.852)) * 60))
+  const timeline: DispatchTimelineEvent[] = [
+    makeTimelineEvent(
+      'dispatch',
+      options.dispatchTime,
+      '智能派单',
+      `系统指派 ${options.vessel.name} 前往处置${options.alarm.targetName}${ALARM_DESCRIPTIONS[options.alarm.type]}`,
+    ),
+  ]
+  if (options.status === 'sailing' || options.status === 'arrived' || options.status === 'handling') {
+    timeline.push(
+      makeTimelineEvent(
+        'sail',
+        isoPlusMinutes(options.dispatchTime, 8),
+        '已出航',
+        `${options.vessel.name} 已离港出航，航速 ${options.vessel.speed.toFixed(1)} 节`,
+      ),
+    )
+  }
+  if (options.status === 'arrived' || options.status === 'handling') {
+    timeline.push(
+      makeTimelineEvent(
+        'arrive',
+        isoPlusMinutes(options.dispatchTime, etaMinutes),
+        '已抵达',
+        `${options.vessel.name} 已抵达目标海域，准备现场处置`,
+      ),
+    )
+  }
+  if (options.status === 'handling') {
+    timeline.push(
+      makeTimelineEvent(
+        'handle',
+        isoPlusMinutes(options.dispatchTime, etaMinutes + 5),
+        '开始处置',
+        `执法人员已抵近检查${options.alarm.targetName}`,
+      ),
+    )
+  }
+  if (options.status === 'finished' && options.endTime) {
+    const title = options.outcome === 'done' ? '处置完成' : options.outcome === 'timeout' ? '超时未处置' : '已转办'
+    const desc =
+      options.outcome === 'done'
+        ? '现场处置完成，告警已闭环'
+        : options.outcome === 'timeout'
+          ? '超过规定时限仍未处置完成'
+          : '因现场情况复杂，已转办至其他执法船'
+    timeline.push(makeTimelineEvent('finish', options.endTime, title, options.note || desc))
+    if (options.outcome === 'transfer') {
+      timeline.push(makeTimelineEvent('transfer', options.endTime, '转办登记', '原派单已结束，系统已自动生成新派单'))
+    }
+  }
+  return {
+    id: `D-${String(seq).padStart(4, '0')}`,
+    code: makeDispatchCode(new Date(options.dispatchTime), seq),
+    alarmId: options.alarm.id,
+    alarmType: options.alarm.type,
+    alarmLevel: options.alarm.level,
+    alarmTime: options.alarm.occurredAt,
+    alarmDescription: options.alarm.description,
+    targetId: options.alarm.targetId,
+    targetName: options.alarm.targetName,
+    targetMmsi: options.alarm.targetMmsi,
+    lon: options.alarm.lon,
+    lat: options.alarm.lat,
+    vesselId: options.vessel.id,
+    vesselName: options.vessel.name,
+    dispatchTime: options.dispatchTime,
+    status: options.status,
+    etaMinutes,
+    distanceKm,
+    outcome: options.outcome ?? null,
+    endTime: options.endTime ?? null,
+    durationMinutes: options.durationMinutes ?? null,
+    note: options.note ?? '',
+    timeline,
+  }
+}
+
+function generateDispatchOrders() {
+  const usedAlarmIds = new Set<string>()
+  const takePendingAlarm = () => {
+    const pool = alarms.filter((a) => a.status === 'pending' && !usedAlarmIds.has(a.id))
+    const alarm = pool.length > 0 ? pool[Math.floor(rng() * pool.length)] ?? null : null
+    if (alarm) usedAlarmIds.add(alarm.id)
+    return alarm
+  }
+  const takeIdleVessel = () => {
+    const vessel = vessels.find((v) => v.status === 'idle') ?? null
+    if (vessel) vessel.status = 'dispatched'
+    return vessel
+  }
+
+  const activeStatuses: DispatchStatus[] = ['waiting', 'sailing', 'arrived', 'handling']
+  const activeMinutes = [6, 18, 34, 52]
+  activeStatuses.forEach((status, index) => {
+    const alarm = takePendingAlarm()
+    const vessel = takeIdleVessel()
+    if (!alarm || !vessel) return
+    alarm.status = 'processing'
+    dispatchOrders.push(buildDispatchOrder({ alarm, vessel, status, dispatchTime: isoMinutesAgo(activeMinutes[index]) }))
+  })
+
+  const chainAlarm = takePendingAlarm()
+  if (chainAlarm) {
+    const firstVessel = takeIdleVessel()
+    const secondVessel = takeIdleVessel()
+    if (firstVessel && secondVessel) {
+      const firstEnd = isoMinutesAgo(100)
+      const first = buildDispatchOrder({
+        alarm: chainAlarm,
+        vessel: firstVessel,
+        status: 'finished',
+        dispatchTime: isoMinutesAgo(150),
+        outcome: 'transfer',
+        endTime: firstEnd,
+        note: '现场情况复杂，转办至临近执法船',
+        durationMinutes: 50,
+      })
+      firstVessel.status = 'idle'
+      dispatchOrders.push(first)
+      chainAlarm.status = 'processing'
+      dispatchOrders.push(buildDispatchOrder({ alarm: chainAlarm, vessel: secondVessel, status: 'sailing', dispatchTime: firstEnd }))
+    }
+  }
+
+  const timeoutAlarms = [0, 1, 2].map(() => takePendingAlarm()).filter((alarm): alarm is AlarmEvent => Boolean(alarm))
+  timeoutAlarms.forEach((alarm, index) => {
+    const vessel = vessels[Math.floor(rng() * vessels.length)] ?? vessels[0]
+    const dispatchTime = isoMinutesAgo(420 + index * 210)
+    const duration = 75 + index * 15
+    alarm.status = 'pending'
+    dispatchOrders.push(
+      buildDispatchOrder({
+        alarm,
+        vessel,
+        status: 'finished',
+        dispatchTime,
+        outcome: 'timeout',
+        endTime: isoPlusMinutes(dispatchTime, duration),
+        note: '超过规定时限，自动结束并退回待处置',
+        durationMinutes: duration,
+      }),
+    )
+  })
+
+  const doneCandidates = alarms.filter((a) => (a.status === 'done' || a.status === 'reviewed') && !usedAlarmIds.has(a.id))
+  doneCandidates.slice(0, 14).forEach((alarm, index) => {
+    const vessel = vessels[Math.floor(rng() * vessels.length)] ?? vessels[0]
+    const dispatchTime = isoMinutesAgo(90 + index * 55)
+    const duration = Math.max(18, Math.round(50 + rng() * 70))
+    alarm.status = 'done'
+    dispatchOrders.push(
+      buildDispatchOrder({
+        alarm,
+        vessel,
+        status: 'finished',
+        dispatchTime,
+        outcome: 'done',
+        endTime: isoPlusMinutes(dispatchTime, duration),
+        note: rng() > 0.5 ? '现场检查完成，告警解除' : '',
+        durationMinutes: duration,
+      }),
+    )
+  })
+
+  dispatchOrders.sort((a, b) => b.dispatchTime.localeCompare(a.dispatchTime))
+}
+
 function initMaritimeData() {
   if (targets.length > 0 || sourceReports.length > 0 || alarms.length > 0) return
   for (let i = 0; i < TARGET_COUNT; i += 1) {
@@ -248,6 +501,8 @@ function initMaritimeData() {
   generateSourceReports()
   generateTracks()
   generateAlarms()
+  buildVessels()
+  generateDispatchOrders()
   sim.updatedAt = nowIso()
 }
 
@@ -458,6 +713,60 @@ export function getTrackPoints() {
 /** 返回全部告警事件的只读视图。 */
 export function getAlarms() {
   return alarms
+}
+
+/** 返回全部执法船资源的只读视图。 */
+export function getLawVessels() {
+  return vessels
+}
+
+/** 返回全部智能执法派单的只读视图。 */
+export function getDispatchOrders() {
+  return dispatchOrders
+}
+
+/** 当前系统时间 ISO 字符串，供派单流转写入时间线。 */
+export function currentTimeIso() {
+  return nowIso()
+}
+
+/** 创建并写入一条派单记录，返回完整派单对象。 */
+export function createDispatchOrderRecord(input: {
+  alarm: AlarmEvent
+  vessel: EnforcementVessel
+  status: DispatchStatus
+  dispatchTime?: string
+  outcome?: DispatchOutcome | null
+  endTime?: string | null
+  note?: string
+  durationMinutes?: number | null
+}): DispatchOrder {
+  const order = buildDispatchOrder({
+    alarm: input.alarm,
+    vessel: input.vessel,
+    status: input.status,
+    dispatchTime: input.dispatchTime || nowIso(),
+    outcome: input.outcome,
+    endTime: input.endTime,
+    note: input.note,
+    durationMinutes: input.durationMinutes,
+  })
+  dispatchOrders.unshift(order)
+  return order
+}
+
+/** 更新一条派单记录，返回更新后的派单对象。 */
+export function updateDispatchOrder(id: string, patch: Partial<DispatchOrder>): DispatchOrder {
+  const order = dispatchOrders.find((item) => item.id === id)
+  if (!order) throw new Error('派单不存在')
+  Object.assign(order, patch)
+  return order
+}
+
+/** 更新执法船占用状态。 */
+export function setVesselStatus(id: string, status: EnforcementVesselStatus) {
+  const vessel = vessels.find((item) => item.id === id)
+  if (vessel) vessel.status = status
 }
 
 export { buildStats, getMaritimeStatus, refreshData, setPaused, setSimError }

@@ -19,6 +19,7 @@ import type {
   TargetType,
   TrackPoint,
 } from '@/types/maritime'
+import { RADAR_SOURCE_OPTIONS } from '@/types/maritime'
 import { useMaritimeAlarmsStore } from './maritimeAlarms'
 import { useMaritimeUiStore } from './maritimeUi'
 
@@ -73,9 +74,7 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
     },
     sourceCounts(state) {
       return {
-        phased: state.targets.filter((t) => t.sources.includes('phased')).length,
-        xband1: state.targets.filter((t) => t.sources.includes('xband1')).length,
-        xband2: state.targets.filter((t) => t.sources.includes('xband2')).length,
+        radar: state.targets.filter((t) => RADAR_SOURCE_OPTIONS.some((s) => t.sources.includes(s))).length,
         ais: state.targets.filter((t) => t.sources.includes('ais')).length,
         framecode: state.targets.filter((t) => t.sources.includes('framecode')).length,
       }

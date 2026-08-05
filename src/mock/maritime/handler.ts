@@ -1,20 +1,28 @@
 /** /api/maritime 请求分发：把 URL 参数与请求体映射到演示数据查询函数。 */
-import type { AlarmLevel, DisposeStatus, TargetSource, TargetStatus, TargetType } from '@/types/maritime'
+import type { AlarmLevel, AlarmType, DisposeStatus, DispatchOutcome, DispatchStatus, TargetSource, TargetStatus, TargetType } from '@/types/maritime'
 import {
   MockError,
   DISPOSE_STATUS_OPTIONS,
+  advanceDispatch,
   buildStats,
+  createSmartDispatch,
+  finishDispatch,
   getMaritimeStatus,
   queryAlarms,
+  queryLawDispatchDetail,
+  queryLawDispatchOrders,
+  queryLawDispatchOverview,
   queryTargetDetail,
   queryTargetSources,
   queryTargetTracks,
   queryTargets,
   queryTargetTrack,
+  recommendLawDispatch,
   refreshData,
   setPaused,
   setSimError,
   updateAlarmStatus,
+  urgeDispatch,
 } from './data'
 
 type RequestParams = Record<string, string | string[] | undefined>
@@ -56,6 +64,21 @@ interface ErrorBody {
   enabled?: boolean
 }
 
+interface LawDispatchBody {
+  alarmId?: string
+  vesselId?: string
+}
+
+interface LawOrderBody {
+  id?: string
+}
+
+interface LawFinishBody {
+  id?: string
+  outcome?: string
+  note?: string
+}
+
 /** 处理一个 /api/maritime 请求，返回统一响应包。 */
 export function handleMaritimeRequest(
   method: string,
@@ -95,6 +118,22 @@ export function handleMaritimeRequest(
           }),
         )
       }
+      if (path === '/api/maritime/law/overview') return ok(queryLawDispatchOverview())
+      if (path === '/api/maritime/law/orders') {
+        return ok(
+          queryLawDispatchOrders({
+            page: toNumber(params.page, 1),
+            pageSize: toNumber(params.pageSize, 10),
+            scope: first(params.scope) === 'history' ? 'history' : first(params.scope) === 'current' ? 'current' : undefined,
+            statuses: toList<DispatchStatus>(params.statuses),
+            outcomes: toList<DispatchOutcome>(params.outcomes),
+            types: toList<AlarmType>(params.types),
+            keyword: first(params.keyword),
+          }),
+        )
+      }
+      if (path === '/api/maritime/law/order/detail') return ok(queryLawDispatchDetail(first(params.id)))
+      if (path === '/api/maritime/law/recommend') return ok(recommendLawDispatch(first(params.alarmId) || undefined))
       if (path === '/api/maritime/status') return ok(getMaritimeStatus())
       return err('接口不存在', 404)
     }
@@ -116,6 +155,20 @@ export function handleMaritimeRequest(
       if (path === '/api/maritime/error') {
         setSimError(Boolean((body as ErrorBody)?.enabled))
         return ok(getMaritimeStatus())
+      }
+      if (path === '/api/maritime/law/dispatch') {
+        const payload = (body || {}) as LawDispatchBody
+        return ok(createSmartDispatch({ alarmId: payload.alarmId || undefined, vesselId: payload.vesselId || undefined }))
+      }
+      if (path === '/api/maritime/law/urge') {
+        return ok(urgeDispatch((body as LawOrderBody)?.id || ''))
+      }
+      if (path === '/api/maritime/law/advance') {
+        return ok(advanceDispatch((body as LawOrderBody)?.id || ''))
+      }
+      if (path === '/api/maritime/law/finish') {
+        const payload = (body || {}) as LawFinishBody
+        return ok(finishDispatch(payload.id || '', payload.outcome as DispatchOutcome, payload.note || ''))
       }
       return err('接口不存在', 404)
     }

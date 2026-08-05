@@ -122,6 +122,84 @@ export interface AlarmEvent {
   description: string
 }
 
+/** 执法船可用状态 */
+export type EnforcementVesselStatus = 'idle' | 'dispatched' | 'offline'
+/** 派单执行状态 */
+export type DispatchStatus = 'waiting' | 'sailing' | 'arrived' | 'handling' | 'finished'
+/** 派单结束结果 */
+export type DispatchOutcome = 'done' | 'timeout' | 'transfer'
+/** 处置时间线事件类型 */
+export type DispatchTimelineType = 'dispatch' | 'sail' | 'arrive' | 'handle' | 'urge' | 'finish' | 'transfer'
+
+/** 可调用的执法船资源 */
+export interface EnforcementVessel {
+  id: string
+  name: string
+  model: string
+  status: EnforcementVesselStatus
+  lon: number
+  lat: number
+  speed: number
+  lastUpdate: string
+}
+
+/** 处置时间线节点 */
+export interface DispatchTimelineEvent {
+  id: string
+  type: DispatchTimelineType
+  time: string
+  title: string
+  description: string
+}
+
+/** 智能执法派单 */
+export interface DispatchOrder {
+  id: string
+  code: string
+  alarmId: string
+  alarmType: AlarmType
+  alarmLevel: AlarmLevel
+  alarmTime: string
+  alarmDescription: string
+  targetId: string
+  targetName: string
+  targetMmsi: string
+  lon: number
+  lat: number
+  vesselId: string
+  vesselName: string
+  dispatchTime: string
+  status: DispatchStatus
+  etaMinutes: number
+  distanceKm: number
+  outcome: DispatchOutcome | null
+  endTime: string | null
+  durationMinutes: number | null
+  note: string
+  timeline: DispatchTimelineEvent[]
+}
+
+/** 智能执法概览统计 */
+export interface DispatchOverview {
+  currentWaiting: number
+  currentActive: number
+  currentToday: number
+  currentFinishedToday: number
+  historyTodayFinished: number
+  onTimeRate: number
+  avgResponseMinutes: number
+  availableVessels: number
+}
+
+/** 智能派单推荐结果 */
+export interface LawDispatchRecommend {
+  alarm: AlarmEvent
+  vessel: EnforcementVessel
+  distanceKm: number
+  etaMinutes: number
+  reason: string
+}
+
 /** 目标规模统计 */
 export interface MaritimeStats {
   total: number
@@ -238,12 +316,36 @@ export const DISPOSE_STATUS_LABELS: Record<DisposeStatus, string> = {
   reviewed: '已复核',
 }
 
+export const ENFORCEMENT_VESSEL_STATUS_LABELS: Record<EnforcementVesselStatus, string> = {
+  idle: '空闲',
+  dispatched: '执行中',
+  offline: '维护中',
+}
+
+export const DISPATCH_STATUS_LABELS: Record<DispatchStatus, string> = {
+  waiting: '待出航',
+  sailing: '出航中',
+  arrived: '已抵达',
+  handling: '处置中',
+  finished: '已结束',
+}
+
+export const DISPATCH_OUTCOME_LABELS: Record<DispatchOutcome, string> = {
+  done: '处置完成',
+  timeout: '超时未处置',
+  transfer: '已转办',
+}
+
 export const TARGET_SOURCE_OPTIONS = Object.keys(TARGET_SOURCE_LABELS) as TargetSource[]
 export const TARGET_STATUS_OPTIONS = Object.keys(TARGET_STATUS_LABELS) as TargetStatus[]
 export const TARGET_TYPE_OPTIONS = Object.keys(TARGET_TYPE_LABELS) as TargetType[]
 export const RADAR_SOURCE_OPTIONS: TargetSource[] = ['phased', 'xband1', 'xband2']
 export const ALARM_LEVEL_OPTIONS = Object.keys(ALARM_LEVEL_LABELS) as AlarmLevel[]
+export const ALARM_TYPE_OPTIONS = Object.keys(ALARM_TYPE_LABELS) as AlarmType[]
 export const DISPOSE_STATUS_OPTIONS = Object.keys(DISPOSE_STATUS_LABELS) as DisposeStatus[]
+export const ENFORCEMENT_VESSEL_STATUS_OPTIONS = Object.keys(ENFORCEMENT_VESSEL_STATUS_LABELS) as EnforcementVesselStatus[]
+export const DISPATCH_STATUS_OPTIONS = Object.keys(DISPATCH_STATUS_LABELS) as DispatchStatus[]
+export const DISPATCH_OUTCOME_OPTIONS = Object.keys(DISPATCH_OUTCOME_LABELS) as DispatchOutcome[]
 
 export const DEFAULT_MAP_CENTER: LatLng = { lon: 121.8, lat: 31 }
 export const DEFAULT_MAP_ZOOM = 1
