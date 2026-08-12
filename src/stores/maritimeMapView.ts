@@ -31,7 +31,7 @@ export const useMaritimeMapViewStore = defineStore('maritimeMapView', () => {
     zoom.value = DEFAULT_MAP_ZOOM
   }
 
-  function focusTarget(target: FusionTarget, zoomLevel = 2.6) {
+  function focusTarget(target: FusionTarget, zoomLevel = 2.8) {
     center.value = { lon: target.lon, lat: target.lat }
     zoom.value = zoomLevel
     highlightId.value = target.id

@@ -21,6 +21,16 @@
         <span>{{ item.label }}</span>
       </button>
     </div>
+    <div v-if="mapStore.layers.vessels" class="maritime-map-legend" aria-label="船只标识">
+      <span class="maritime-map-legend__item">
+        <img class="maritime-map-legend__icon" :src="normalMarker" alt="正常船舶" />
+        <span>正常船舶</span>
+      </span>
+      <span class="maritime-map-legend__item">
+        <img class="maritime-map-legend__icon" :src="sanwuMarker" alt="三无船舶" />
+        <span>三无船舶</span>
+      </span>
+    </div>
     <div v-if="mapStore.mode === 'pick' && mapStore.pickedPoint" class="maritime-map-mode-card">
       <span>拾取坐标</span>
       <strong>{{ pickedText }}</strong>
@@ -45,6 +55,8 @@ import { useMaritimeMap } from '@/composables/useMaritimeMap'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import type { LayerState } from '@/types/maritime'
+import normalMarker from '@/assets/maritime/marker-normal.svg'
+import sanwuMarker from '@/assets/maritime/marker-sanwu.svg'
 
 interface LayerSwitchItem {
   key: keyof LayerState
@@ -170,6 +182,35 @@ const tooltipStyle = computed(() => ({
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.maritime-map-legend {
+  position: absolute;
+  top: 52px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(4, 13, 25, 0.78);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 6px;
+}
+
+.maritime-map-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--mar-text-dim);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.maritime-map-legend__icon {
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
 }
 

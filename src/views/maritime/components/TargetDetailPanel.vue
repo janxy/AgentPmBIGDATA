@@ -332,6 +332,10 @@
             <dd>{{ numberText(zoneDetail.areaKm2, ' km²') }}</dd>
           </div>
           <div class="td-field">
+            <dt>告警等级</dt>
+            <dd>{{ ALARM_LEVEL_LABELS[zoneDetail.alarmLevel] }}</dd>
+          </div>
+          <div class="td-field">
             <dt>启用状态</dt>
             <dd>
               <span class="td-status" :class="zoneDetail.enabled ? 'is-online' : 'is-offline'">
@@ -485,11 +489,17 @@ const pendingAlarms = computed(() =>
   alarmsStore.alarms.filter((a) => a.targetId === detail.value?.id && a.status === 'pending'),
 )
 
-const sizeText = computed(() =>
-  detail.value ? `${detail.value.length} × ${detail.value.width} m` : '暂无数据',
-)
+const sizeText = computed(() => {
+  const target = detail.value
+  if (!target || target.length <= 0 || target.width <= 0) return '暂无数据'
+  return `${target.length} × ${target.width} m`
+})
 
-const draftText = computed(() => (detail.value ? `${detail.value.draft} m` : '暂无数据'))
+const draftText = computed(() => {
+  const target = detail.value
+  if (!target || target.draft <= 0) return '暂无数据'
+  return `${target.draft} m`
+})
 
 const positionText = computed(() => {
   const target = detail.value

@@ -1,5 +1,6 @@
 /** 海图 Canvas 图层渲染：底图、网格、区划、雷达、光电、区域、船只与工具图层。 */
 import type {
+  AlarmLevel,
   EoDevice,
   FenceZone,
   FusionTarget,
@@ -8,17 +9,87 @@ import type {
   MapMode,
   MonitorCategory,
   TargetStyleState,
+  TrackPoint,
 } from '@/types/maritime'
 import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
 import { MARITIME_GEO_FEATURES, RADAR_STATIONS } from '@/utils/maritimeGeography'
+import normalMarkerUrl from '@/assets/maritime/marker-normal.svg'
+import sanwuMarkerUrl from '@/assets/maritime/marker-sanwu.svg'
 import {
   MARKER_RADIUS,
-  STATUS_COLORS,
+  TARGET_MARKER_SIZE,
+  TARGET_TYPE_COLORS,
   clusterRadius,
 } from '@/utils/maritimeMapTheme'
 import { distanceMeters } from '@/utils/geo'
 
 const KM_PER_DEG = 111.32
+
+const ZONE_LEVEL_COLORS: Record<
+  AlarmLevel,
+  { fill: string; stroke: string; activeFill: string; activeStroke: string; text: string }
+> = {
+  urgent: {
+    fill: 'rgba(255, 138, 107, 0.10)',
+    stroke: 'rgba(255, 138, 107, 0.52)',
+    activeFill: 'rgba(255, 138, 107, 0.24)',
+    activeStroke: '#ffb49e',
+    text: 'rgba(255, 200, 182, 0.92)',
+  },
+  important: {
+    fill: 'rgba(255, 209, 102, 0.10)',
+    stroke: 'rgba(255, 209, 102, 0.52)',
+    activeFill: 'rgba(255, 209, 102, 0.24)',
+    activeStroke: '#ffe2a1',
+    text: 'rgba(255, 233, 184, 0.92)',
+  },
+  normal: {
+    fill: 'rgba(86, 204, 255, 0.10)',
+    stroke: 'rgba(86, 204, 255, 0.52)',
+    activeFill: 'rgba(86, 204, 255, 0.24)',
+    activeStroke: '#9fdcff',
+    text: 'rgba(196, 234, 255, 0.92)',
+  },
+}
+
+const TARGET_MARKER_URLS: Record<FusionTarget['type'], string> = {
+  normal: normalMarkerUrl,
+  sanwu: sanwuMarkerUrl,
+}
+
+const targetMarkers: Partial<Record<FusionTarget['type'], HTMLImageElement>> = {}
+
+function getTargetMarker(type: FusionTarget['type']): HTMLImageElement | null {
+  const image = targetMarkers[type]
+  return image && image.complete && image.naturalWidth > 0 ? image : null
+}
+
+export function preloadTargetMarkers(onReady: () => void): void {
+  let pending = 0
+  const track = (image: HTMLImageElement) => {
+    if (image.complete) return
+    pending += 1
+    const finish = () => {
+      pending -= 1
+      if (pending === 0) onReady()
+    }
+    image.onload = finish
+    image.onerror = finish
+  }
+  for (const type of ['normal', 'sanwu'] as FusionTarget['type'][]) {
+    const cached = targetMarkers[type]
+    if (cached) {
+      track(cached)
+      continue
+    }
+    if (typeof Image === 'undefined') continue
+    const image = new Image()
+    image.src = TARGET_MARKER_URLS[type]
+    targetMarkers[type] = image
+    track(image)
+  }
+  if (pending === 0) onReady()
+}
 
 export interface ScreenTarget {
   target: FusionTarget
@@ -62,6 +133,7 @@ export interface MapLayerContext {
   pickedPoint: LatLng | null
   highlightId: string | null
   selectedId: string | null
+  selectedTrack: TrackPoint[]
   eoDevices: EoDevice[]
   zones: FenceZone[]
   selectedCategory: MonitorCategory | null
@@ -317,21 +389,22 @@ export function drawZones(ctx: CanvasRenderingContext2D, context: MapLayerContex
   for (const item of buildZoneScreenItems(zones, context.project)) {
     const zone = item.zone
     const active = context.selectedCategory === 'fence' && context.selectedCategoryId === zone.id
+    const color = ZONE_LEVEL_COLORS[zone.alarmLevel] ?? ZONE_LEVEL_COLORS.normal
     ctx.beginPath()
     item.points.forEach((point, index) => {
       if (index === 0) ctx.moveTo(point.x, point.y)
       else ctx.lineTo(point.x, point.y)
     })
     ctx.closePath()
-    ctx.fillStyle = active ? 'rgba(245, 184, 75, 0.32)' : 'rgba(245, 184, 75, 0.12)'
+    ctx.fillStyle = active ? color.activeFill : color.fill
     ctx.fill()
-    ctx.strokeStyle = active ? '#f5b84b' : 'rgba(245, 184, 75, 0.72)'
-    ctx.lineWidth = active ? 2 : 1.4
+    ctx.strokeStyle = active ? color.activeStroke : color.stroke
+    ctx.lineWidth = active ? 1.8 : 1.2
     ctx.setLineDash([7, 5])
     ctx.stroke()
     ctx.setLineDash([])
 
-    ctx.fillStyle = active ? '#fde9bd' : 'rgba(245, 184, 75, 0.95)'
+    ctx.fillStyle = active ? color.activeStroke : color.text
     ctx.font = '12px "PingFang SC", sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(zone.name, item.x, item.y - 8)
@@ -345,12 +418,13 @@ export function drawZoneMarkers(ctx: CanvasRenderingContext2D, context: MapLayer
   for (const zone of zones) {
     const point = context.project(zone)
     const active = context.selectedCategory === 'fence' && context.selectedCategoryId === zone.id
+    const color = ZONE_LEVEL_COLORS[zone.alarmLevel] ?? ZONE_LEVEL_COLORS.normal
     ctx.save()
     ctx.translate(point.x, point.y)
     ctx.rotate(Math.PI / 4)
     ctx.fillStyle = 'rgba(3, 14, 24, 0.88)'
-    ctx.strokeStyle = active ? '#f5b84b' : 'rgba(245, 184, 75, 0.9)'
-    ctx.lineWidth = active ? 2 : 1.5
+    ctx.strokeStyle = active ? color.activeStroke : color.stroke
+    ctx.lineWidth = active ? 1.8 : 1.2
     ctx.fillRect(-5, -5, 10, 10)
     ctx.strokeRect(-5, -5, 10, 10)
     ctx.restore()
@@ -419,11 +493,177 @@ export function drawCluster(ctx: CanvasRenderingContext2D, cluster: ScreenCluste
   ctx.textBaseline = 'alphabetic'
 }
 
+const TRACK_LINE_COLOR = '#38c6ff'
+
+const TRACK_MOTION_COLORS: Record<string, string> = {
+  '停': '#f5b84b',
+  '慢': '#38c6ff',
+  '快': '#35e0a8',
+  '加速': '#ff8f6b',
+  '减速': '#ff6b81',
+}
+
+export function trackTimeLabelEvery(zoom: number) {
+  return zoom >= 4 ? 1 : zoom >= 2.8 ? 3 : 6
+}
+
+export function formatTrackTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+export function trackMotionStatus(point: TrackPoint, previous: TrackPoint | null): string | null {
+  const stopped = point.speed < 0.5
+  if (stopped) return '停'
+  if (previous) {
+    const delta = point.speed - previous.speed
+    if (delta > 0.5) return '加速'
+    if (delta < -0.5) return '减速'
+  }
+  if (point.speed >= 12) return '快'
+  if (point.speed < 8) return '慢'
+  return null
+}
+
+export interface TrackTimeLabelBox {
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export function buildTrackTimeLabel(
+  point: TrackPoint,
+  index: number,
+  total: number,
+  projected: { x: number; y: number },
+  zoom: number,
+): TrackTimeLabelBox | null {
+  const labelEvery = trackTimeLabelEvery(zoom)
+  if (index % labelEvery !== 0 && index !== total - 1) return null
+  const text = formatTrackTime(point.time)
+  const height = 12
+  const above = index % 2 === 0
+  const width = text.length * 6 + 10
+  return {
+    text,
+    x: projected.x - width / 2,
+    y: above ? projected.y - 20 : projected.y + 10,
+    width,
+    height,
+  }
+}
+
+function drawTrackArrow(ctx: CanvasRenderingContext2D, from: { x: number; y: number }, to: { x: number; y: number }) {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const length = Math.hypot(dx, dy)
+  if (length < 8) return
+  const angle = Math.atan2(dy, dx)
+  const headLength = Math.min(9, length * 0.38)
+  ctx.save()
+  ctx.translate(from.x + dx * 0.5, from.y + dy * 0.5)
+  ctx.rotate(angle)
+  ctx.beginPath()
+  ctx.moveTo(headLength, 0)
+  ctx.lineTo(-headLength * 0.62, -headLength * 0.56)
+  ctx.lineTo(-headLength * 0.62, headLength * 0.56)
+  ctx.closePath()
+  ctx.fillStyle = TRACK_LINE_COLOR
+  ctx.fill()
+  ctx.restore()
+}
+
+/** 绘制选中目标的最近航迹：细线连接至当前船位，每段画航行箭头并标注点时间。 */
+export function drawTargetTrack(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
+  const selectedId = context.selectedId
+  const track = context.selectedTrack
+  if (!selectedId || track.length === 0) return
+  const target = context.targets.find((item) => item.id === selectedId)
+  const points = track.map((point) => context.project(point))
+  if (target) {
+    const latest = track[track.length - 1]
+    const connected =
+      latest && Math.abs(latest.lon - target.lon) < 1e-9 && Math.abs(latest.lat - target.lat) < 1e-9
+    if (!connected) points.push(context.project(target))
+  }
+  if (points.length < 2) return
+
+  ctx.save()
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  ctx.strokeStyle = TRACK_LINE_COLOR
+  ctx.globalAlpha = 0.85
+  ctx.lineWidth = 1.4
+  ctx.beginPath()
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y)
+    else ctx.lineTo(point.x, point.y)
+  })
+  ctx.stroke()
+
+  ctx.globalAlpha = 1
+  for (let index = 0; index < points.length - 1; index += 1) {
+    drawTrackArrow(ctx, points[index], points[index + 1])
+  }
+
+  let previousTrackPoint: TrackPoint | null = null
+  let previousStatus: string | null = null
+  track.forEach((point, index) => {
+    const projected = points[index]
+    const isLatest = index === track.length - 1
+    ctx.fillStyle = 'rgba(3, 14, 24, 0.9)'
+    ctx.strokeStyle = TRACK_LINE_COLOR
+    ctx.lineWidth = isLatest ? 1.5 : 1.1
+    ctx.beginPath()
+    ctx.arc(projected.x, projected.y, isLatest ? 3.6 : 2.4, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+
+    const label = buildTrackTimeLabel(point, index, track.length, projected, context.zoom)
+    if (label) {
+      ctx.font = '10px "PingFang SC", sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = 'rgba(3, 14, 24, 0.78)'
+      ctx.fillRect(label.x, label.y, label.width, label.height)
+      ctx.fillStyle = '#dff3ff'
+      ctx.fillText(label.text, label.x + label.width / 2, label.y + label.height / 2)
+    }
+
+    const status = trackMotionStatus(point, previousTrackPoint)
+    if (status && previousTrackPoint && status !== previousStatus) {
+      const color = TRACK_MOTION_COLORS[status] ?? '#dff3ff'
+      const above = index % 2 === 0
+      const statusY = above ? projected.y + 24 : projected.y - 36
+      const statusWidth = status.length * 12 + 10
+      ctx.font = '10px "PingFang SC", sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = 'rgba(3, 14, 24, 0.85)'
+      ctx.fillRect(projected.x - statusWidth / 2, statusY, statusWidth, 12)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1
+      ctx.strokeRect(projected.x - statusWidth / 2, statusY, statusWidth, 12)
+      ctx.fillStyle = color
+      ctx.fillText(status, projected.x, statusY + 6)
+    }
+    previousStatus = status
+    previousTrackPoint = point
+  })
+  ctx.textBaseline = 'alphabetic'
+  ctx.restore()
+}
+
 export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerContext, target: FusionTarget) {
   const point = context.project(target)
-  const radius = MARKER_RADIUS[context.targetStyle.markerSize]
-  const color = STATUS_COLORS[target.status]
+  const markerSize = TARGET_MARKER_SIZE[context.targetStyle.markerSize]
+  const color = TARGET_TYPE_COLORS[target.type]
   const active = context.highlightId === target.id || context.selectedId === target.id
+  const marker = getTargetMarker(target.type)
 
   if (active) {
     ctx.save()
@@ -431,11 +671,21 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
     ctx.globalAlpha = 0.55
     ctx.lineWidth = 1.5
     ctx.beginPath()
-    ctx.arc(point.x, point.y, radius + 8, 0, Math.PI * 2)
+    ctx.arc(point.x, point.y, Math.max(MARKER_RADIUS[context.targetStyle.markerSize] + 8, markerSize * 0.62), 0, Math.PI * 2)
     ctx.stroke()
     ctx.restore()
   }
 
+  if (marker) {
+    ctx.save()
+    ctx.translate(point.x, point.y)
+    ctx.rotate(((target.course - 180) * Math.PI) / 180)
+    ctx.drawImage(marker, -markerSize / 2, -markerSize, markerSize, markerSize)
+    ctx.restore()
+    return
+  }
+
+  const radius = MARKER_RADIUS[context.targetStyle.markerSize]
   ctx.save()
   ctx.strokeStyle = color
   ctx.lineWidth = 2
@@ -445,21 +695,21 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
   ctx.fillStyle = 'rgba(3, 14, 24, 0.85)'
   ctx.fill()
   ctx.restore()
-
-  const heading = (target.course * Math.PI) / 180
-  ctx.strokeStyle = color
-  ctx.lineWidth = 1.4
-  ctx.beginPath()
-  ctx.moveTo(point.x, point.y)
-  ctx.lineTo(point.x + Math.sin(heading) * (radius + 5), point.y - Math.cos(heading) * (radius + 5))
-  ctx.stroke()
-
 }
 
 export function drawTargets(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
   for (const item of buildScreenItems(context.targets, context.project, context.zoom)) {
     if (isCluster(item)) drawCluster(ctx, item)
-    else drawTarget(ctx, context, item.target)
+    else {
+      const dimmed = Boolean(context.selectedId) && item.target.id !== context.selectedId
+      ctx.save()
+      if (dimmed) {
+        const hovered = context.highlightId === item.target.id
+        ctx.globalAlpha = hovered ? 0.7 : 0.35
+      }
+      drawTarget(ctx, context, item.target)
+      ctx.restore()
+    }
   }
 }
 

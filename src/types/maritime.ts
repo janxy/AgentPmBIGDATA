@@ -73,6 +73,7 @@ export interface FenceZone {
   radiusKm: number
   areaKm2: number
   enabled: boolean
+  alarmLevel: AlarmLevel
   alarmCount: number
   lastUpdate: string
 }
@@ -347,12 +348,12 @@ export const ENFORCEMENT_VESSEL_STATUS_OPTIONS = Object.keys(ENFORCEMENT_VESSEL_
 export const DISPATCH_STATUS_OPTIONS = Object.keys(DISPATCH_STATUS_LABELS) as DispatchStatus[]
 export const DISPATCH_OUTCOME_OPTIONS = Object.keys(DISPATCH_OUTCOME_LABELS) as DispatchOutcome[]
 
-export const DEFAULT_MAP_CENTER: LatLng = { lon: 121.8, lat: 31 }
+export const DEFAULT_MAP_CENTER: LatLng = { lon: 118.17, lat: 24.36 }
 export const DEFAULT_MAP_ZOOM = 1
 
 export const JURISDICTION_BOUNDS = {
-  minLon: 120.2,
-  maxLon: 123.4,
-  minLat: 29.6,
-  maxLat: 32.6,
+  minLon: 117.95,
+  maxLon: 118.35,
+  minLat: 24.2,
+  maxLat: 24.5,
 } as const

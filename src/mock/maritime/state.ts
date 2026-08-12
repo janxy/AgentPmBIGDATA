@@ -22,15 +22,38 @@ import type {
 } from '@/types/maritime'
 import { JURISDICTION_BOUNDS } from '@/types/maritime'
 import { distanceMeters } from '@/utils/geo'
+import rawChuanTargets from './chuan.json'
 
-const TARGET_COUNT = 20
 const TRACK_PER_TARGET = 20
+const TARGET_COUNT = 100
 const ALARM_COUNT = 80
-const TICK_MS = 10000
+const TICK_MS = 60000
 const MAX_ALARMS = 100
-const MAX_TRACK_POINTS = 40
+const MAX_TRACK_POINTS = 60
 const MAX_LISTENERS = 12
 const BOUNDS = JURISDICTION_BOUNDS
+
+/** 历史轨迹点的时间间隔（分钟），以及航速到经纬度步长的换算系数。 */
+const TRACK_INTERVAL_MIN = 5
+const TRACK_JITTER = 0.0008
+const KNOT_DEG_PER_MIN = 0.0002773
+
+interface ChuanTarget {
+  fusion_id: string
+  display_id: string
+  mmsi: string | null
+  source_id: string
+  longitude: number
+  latitude: number
+  heading: number
+  speed: number
+  speed_unit: string
+  event_time: string
+  fusion_type: string
+  three_no_status: string
+}
+
+const CHUAN_TARGETS = (rawChuanTargets as ChuanTarget[]).slice(0, TARGET_COUNT)
 
 /** 模拟器状态挂在全局上，避免开发期热更新反复重建定时器与订阅。 */
 const STATE_KEY = '__AXURE_MARITIME_SIM_STATE__'
@@ -71,27 +94,11 @@ function globalSimulatorState(): SimulatorState {
   return record[STATE_KEY] as SimulatorState
 }
 
-const NAME_PREFIXES = [
-  '海巡', '远洋', '深蓝', '振华', '东望', '长兴', '舟山', '临港', '洋山', '崇明',
-  '浦江', '东海', '中远', '招商', '宏图', '安澜', '华海', '海通', '恒泰', '联丰',
-]
-const NAME_SUFFIXES = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
-const NATIONALITIES = ['中国', '中国香港', '巴拿马', '利比里亚', '马绍尔群岛', '新加坡']
-const TYPE_WEIGHTS: Array<[TargetType, number]> = [
-  ['normal', 0.78],
-  ['sanwu', 0.22],
-]
-const STATUS_WEIGHTS: Array<[TargetStatus, number]> = [
-  ['online', 0.8],
-  ['offline', 0.12],
-  ['abnormal', 0.08],
-]
 const QUALITY_WEIGHTS: Array<['high' | 'medium' | 'low', number]> = [
   ['high', 0.65],
   ['medium', 0.25],
   ['low', 0.1],
 ]
-const SOURCE_POOL: TargetSource[] = ['phased', 'xband1', 'xband2', 'ais', 'framecode']
 const ALARM_TYPES: AlarmType[] = ['boundary', 'overspeed', 'lost', 'collision', 'zone']
 const ALARM_LEVEL_WEIGHTS: Array<[AlarmLevel, number]> = [
   ['urgent', 0.2],
@@ -113,13 +120,13 @@ const ALARM_DESCRIPTIONS: Record<AlarmType, string> = {
 }
 
 const VESSEL_DEFS: Array<{ name: string; model: string; speed: number }> = [
-  { name: '海巡0102', model: '中型执法船', speed: 26 },
-  { name: '海巡0306', model: '近海巡逻艇', speed: 30 },
-  { name: '海巡0809', model: '高速执法艇', speed: 34 },
-  { name: '中国渔政33001', model: '渔政执法船', speed: 22 },
-  { name: '中国海监5001', model: '海监巡逻船', speed: 24 },
-  { name: '东海救援02', model: '应急救助船', speed: 20 },
-  { name: '海巡0612', model: '近海巡逻艇', speed: 28 },
+  { name: '厦门海巡01', model: '中型执法船', speed: 26 },
+  { name: '厦门海巡03', model: '近海巡逻艇', speed: 30 },
+  { name: '厦门海巡08', model: '高速执法艇', speed: 34 },
+  { name: '中国渔政35001', model: '渔政执法船', speed: 22 },
+  { name: '中国海监8001', model: '海监巡逻船', speed: 24 },
+  { name: '闽东救援02', model: '应急救助船', speed: 20 },
+  { name: '厦门海巡06', model: '近海巡逻艇', speed: 28 },
   { name: '执法快艇07', model: '高速执法艇', speed: 36 },
 ]
 
@@ -154,6 +161,52 @@ const isoMinutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60000
 const makeId = (prefix: string, n: number) => `${prefix}-${String(n).padStart(4, '0')}`
 const normalizeCourse = (course: number) => ((course % 360) + 360) % 360
 
+function beijingTimeToIso(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return new Date(value).toISOString()
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+  const hour = Number(match[4]) - 8
+  const minute = Number(match[5])
+  const second = Number(match[6])
+  return new Date(Date.UTC(year, month, day, hour, minute, second)).toISOString()
+}
+
+function fusionTypeToSources(value: string): TargetSource[] {
+  const sources: TargetSource[] = []
+  if (value.includes('radar')) sources.push('phased')
+  if (value.includes('ais')) sources.push('ais')
+  if (value.includes('frame_code')) sources.push('framecode')
+  return sources
+}
+
+function buildChuanTarget(raw: ChuanTarget, index: number): FusionTarget {
+  const type: TargetType = raw.three_no_status === 'confirmed' ? 'sanwu' : 'normal'
+  const status: TargetStatus = 'online'
+  const display = raw.display_id || raw.fusion_id || String(index + 1)
+  const lastUpdate = beijingTimeToIso(raw.event_time)
+  return {
+    id: raw.fusion_id || raw.display_id || `CH-${index + 1}`,
+    name: `${type === 'sanwu' ? '三无目标' : '船舶'} ${display}`,
+    mmsi: raw.mmsi || '',
+    callSign: '---',
+    type,
+    nationality: '未知',
+    length: 0,
+    width: 0,
+    draft: 0,
+    lon: raw.longitude,
+    lat: raw.latitude,
+    speed: Number(raw.speed.toFixed(1)),
+    course: normalizeCourse(raw.heading),
+    status,
+    sources: fusionTypeToSources(raw.fusion_type),
+    lastUpdate,
+    lastPositionTime: lastUpdate,
+  }
+}
+
 function weighted<T extends string>(weights: Array<[T, number]>): T {
   let roll = rng()
   for (const [value, weight] of weights) {
@@ -161,46 +214,6 @@ function weighted<T extends string>(weights: Array<[T, number]>): T {
     roll -= weight
   }
   return weights[weights.length - 1][0]
-}
-
-function randomSources(): TargetSource[] {
-  if (chance(0.015)) return []
-  // 多数目标多源融合，保证五类来源均有覆盖。
-  const count = 5 - (chance(0.05) ? 1 : 0) - (chance(0.1) ? 1 : 0)
-  const pool = [...SOURCE_POOL]
-  const result: TargetSource[] = []
-  for (let i = 0; i < count && pool.length > 0; i += 1) {
-    result.push(pool.splice(Math.floor(rng() * pool.length), 1)[0])
-  }
-  return result
-}
-
-function buildTarget(index: number): FusionTarget {
-  const type = weighted(TYPE_WEIGHTS)
-  const suffix = pick(NAME_SUFFIXES)
-  const name = type === 'sanwu' ? `三无${suffix}` : `${pick(NAME_PREFIXES)}${suffix}`
-  const sources = randomSources()
-  const baseSpeed = type === 'sanwu' ? randRange(0, 10) : randRange(6, 18)
-  const status = sources.length === 0 ? 'offline' : weighted(STATUS_WEIGHTS)
-  return {
-    id: makeId('T', index + 1),
-    name,
-    mmsi: type === 'sanwu' ? '' : `412${String(Math.floor(randRange(1000000, 9999999)))}`,
-    callSign: type === 'sanwu' ? '---' : `${pick(['B', 'A', 'C', 'D'])}${Math.floor(randRange(1000, 9999))}`,
-    type,
-    nationality: type === 'sanwu' ? '未知' : pick(NATIONALITIES),
-    length: Math.round(randRange(20, 300)),
-    width: Math.round(randRange(6, 45)),
-    draft: Number(randRange(2, 18).toFixed(1)),
-    lon: randRange(BOUNDS.minLon, BOUNDS.maxLon),
-    lat: randRange(BOUNDS.minLat, BOUNDS.maxLat),
-    speed: Number(baseSpeed.toFixed(1)),
-    course: normalizeCourse(randRange(0, 360)),
-    status,
-    sources,
-    lastUpdate: isoMinutesAgo(Math.floor(randRange(0, 30))),
-    lastPositionTime: isoMinutesAgo(Math.floor(randRange(0, 30))),
-  }
 }
 
 function generateSourceReports() {
@@ -225,18 +238,30 @@ function generateTracks() {
   for (const target of targets) {
     const rad = (target.course * Math.PI) / 180
     const cosLat = Math.cos((target.lat * Math.PI) / 180)
+    const latestTime = target.lastUpdate
+    const isoMinutesBefore = (minutes: number) => new Date(new Date(latestTime).getTime() - minutes * 60000).toISOString()
     for (let i = TRACK_PER_TARGET; i >= 1; i -= 1) {
-      const step = ((target.speed / 60) * 0.12 * i) / 60
+      const minutesAgo = i * TRACK_INTERVAL_MIN
+      const step = target.speed * KNOT_DEG_PER_MIN * minutesAgo
       trackPoints.push({
         id: makeId('P', ++sim.trackSeq),
         targetId: target.id,
-        time: isoMinutesAgo(i * 2),
-        lon: clamp(target.lon - (step * Math.sin(rad)) / cosLat + randRange(-0.002, 0.002), BOUNDS.minLon, BOUNDS.maxLon),
-        lat: clamp(target.lat - step * Math.cos(rad) + randRange(-0.002, 0.002), BOUNDS.minLat, BOUNDS.maxLat),
+        time: isoMinutesBefore(minutesAgo),
+        lon: clamp(target.lon - (step * Math.sin(rad)) / cosLat + randRange(-TRACK_JITTER, TRACK_JITTER), BOUNDS.minLon, BOUNDS.maxLon),
+        lat: clamp(target.lat - step * Math.cos(rad) + randRange(-TRACK_JITTER, TRACK_JITTER), BOUNDS.minLat, BOUNDS.maxLat),
         speed: Number(Math.max(0, target.speed + randRange(-2, 2)).toFixed(1)),
-        course: normalizeCourse(target.course + randRange(-20, 20)),
+        course: normalizeCourse(target.course + randRange(-8, 8)),
       })
     }
+    trackPoints.push({
+      id: makeId('P', ++sim.trackSeq),
+      targetId: target.id,
+      time: latestTime,
+      lon: target.lon,
+      lat: target.lat,
+      speed: target.speed,
+      course: target.course,
+    })
   }
 }
 
@@ -267,14 +292,14 @@ function generateAlarms() {
 
 function buildVessels() {
   const anchors: Array<[number, number]> = [
-    [121.55, 30.98],
-    [121.96, 31.26],
-    [122.22, 30.64],
-    [121.36, 30.42],
-    [122.05, 31.02],
-    [121.78, 31.78],
-    [122.32, 30.86],
-    [121.44, 30.12],
+    [118.06, 24.45],
+    [118.12, 24.43],
+    [118.17, 24.44],
+    [118.22, 24.4],
+    [118.13, 24.36],
+    [118.18, 24.33],
+    [118.08, 24.39],
+    [118.24, 24.36],
   ]
   VESSEL_DEFS.forEach((def, index) => {
     const anchor = anchors[index]
@@ -495,8 +520,8 @@ function generateDispatchOrders() {
 
 function initMaritimeData() {
   if (targets.length > 0 || sourceReports.length > 0 || alarms.length > 0) return
-  for (let i = 0; i < TARGET_COUNT; i += 1) {
-    targets.push(buildTarget(i))
+  for (let i = 0; i < CHUAN_TARGETS.length; i += 1) {
+    targets.push(buildChuanTarget(CHUAN_TARGETS[i], i))
   }
   generateSourceReports()
   generateTracks()
@@ -606,12 +631,12 @@ function tickSimulator() {
   const now = nowIso()
   for (const target of targets) {
     if (target.status !== 'online') continue
-    const step = (target.speed / 60) * 0.12
+    const step = target.speed * KNOT_DEG_PER_MIN
     const rad = (target.course * Math.PI) / 180
     const cosLat = Math.cos((target.lat * Math.PI) / 180)
-    target.lat = clamp(target.lat + (step * Math.cos(rad)) / 60, BOUNDS.minLat, BOUNDS.maxLat)
-    target.lon = clamp(target.lon + (step * Math.sin(rad)) / (60 * cosLat), BOUNDS.minLon, BOUNDS.maxLon)
-    target.course = normalizeCourse(target.course + randRange(-2.5, 2.5))
+    target.lat = clamp(target.lat + step * Math.cos(rad), BOUNDS.minLat, BOUNDS.maxLat)
+    target.lon = clamp(target.lon + (step * Math.sin(rad)) / cosLat, BOUNDS.minLon, BOUNDS.maxLon)
+    target.course = normalizeCourse(target.course + randRange(-3, 3))
     target.lastUpdate = now
     target.lastPositionTime = now
   }

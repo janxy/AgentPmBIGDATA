@@ -1,22 +1,26 @@
 /** 目标监控分类演示数据：雷达目标、光电设备与海域区域。 */
-import type { EoDevice, FenceZone, RadarContact, TargetSource } from '@/types/maritime'
+import type { AlarmLevel, EoDevice, FenceZone, RadarContact, TargetSource } from '@/types/maritime'
 import { JURISDICTION_BOUNDS } from '@/types/maritime'
 
 const RADAR_COUNT = 2
 const EO_COUNT = 5
-const FENCE_ZONE_COUNT = 1
 
 const RADAR_SOURCES: TargetSource[] = ['phased', 'xband1', 'xband2']
-const EO_PREFIXES = ['临港', '洋山', '长兴', '东海', '崇明', '浦江', '横沙', '绿华山', '小洋山']
-const FENCE_NAMES = [
-  '临港警戒区',
-  '洋山锚地区',
-  '长兴岛警戒区',
-  '东海大桥区',
-  '崇明南岸警戒区',
-  '浦江口警戒区',
-  '横沙岛警戒区',
-  '绿华山警戒区',
+const EO_PREFIXES = ['厦门港', '五通', '东渡', '海沧', '嵩屿', '鼓浪屿', '大嶝', '浯屿', '围头']
+
+interface FenceZoneSeed {
+  name: string
+  lon: number
+  lat: number
+  radiusKm: number
+  alarmLevel: AlarmLevel
+  alarmCount: number
+}
+
+const FENCE_ZONE_SEEDS: FenceZoneSeed[] = [
+  { name: '厦门港紧急警戒区', lon: 118.08, lat: 24.44, radiusKm: 6, alarmLevel: 'urgent', alarmCount: 8 },
+  { name: '东渡锚地重要警戒区', lon: 118.14, lat: 24.46, radiusKm: 5, alarmLevel: 'important', alarmCount: 5 },
+  { name: '大嶝海域一般警戒区', lon: 118.29, lat: 24.42, radiusKm: 7.5, alarmLevel: 'normal', alarmCount: 2 },
 ]
 
 function mulberry32(seed: number) {
@@ -63,14 +67,15 @@ export const EO_DEVICES: EoDevice[] = Array.from({ length: EO_COUNT }, (_, index
   lastUpdate: minutesAgoIso(Math.floor(randRange(0, 8))),
 }))
 
-export const FENCE_ZONES: FenceZone[] = FENCE_NAMES.slice(0, FENCE_ZONE_COUNT).map((name, index) => ({
+export const FENCE_ZONES: FenceZone[] = FENCE_ZONE_SEEDS.map((seed, index) => ({
   id: makeId('F', index + 1),
-  name,
-  lon: randRange(JURISDICTION_BOUNDS.minLon + 0.5, JURISDICTION_BOUNDS.maxLon - 0.5),
-  lat: randRange(JURISDICTION_BOUNDS.minLat + 0.5, JURISDICTION_BOUNDS.maxLat - 0.5),
-  radiusKm: Number(randRange(6, 16).toFixed(1)),
-  areaKm2: Number(randRange(3, 68).toFixed(1)),
-  enabled: chance(0.75),
-  alarmCount: Math.floor(randRange(0, 14)),
-  lastUpdate: minutesAgoIso(Math.floor(randRange(0, 20))),
+  name: seed.name,
+  lon: seed.lon,
+  lat: seed.lat,
+  radiusKm: seed.radiusKm,
+  areaKm2: Number((Math.PI * seed.radiusKm * seed.radiusKm * 0.62).toFixed(1)),
+  enabled: true,
+  alarmLevel: seed.alarmLevel,
+  alarmCount: seed.alarmCount,
+  lastUpdate: minutesAgoIso(2 + index * 3),
 }))

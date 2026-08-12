@@ -258,6 +258,9 @@
                 <i class="tm-row__source" :class="zone.enabled ? 'is-device-online' : 'is-device-offline'">
                   {{ zone.enabled ? '启用' : '停用' }}
                 </i>
+                <i class="tm-row__source is-device-alarm">
+                  {{ ALARM_LEVEL_LABELS[zone.alarmLevel] }}
+                </i>
                 <i v-if="zone.alarmCount > 0" class="tm-row__source is-device-alarm">
                   告警 {{ zone.alarmCount }}
                 </i>
@@ -317,6 +320,7 @@ import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
 import { RADAR_STATIONS } from '@/utils/maritimeGeography'
 import {
+  ALARM_LEVEL_LABELS,
   MONITOR_CATEGORY_LABELS,
   TARGET_SOURCE_LABELS,
   TARGET_SOURCE_OPTIONS,

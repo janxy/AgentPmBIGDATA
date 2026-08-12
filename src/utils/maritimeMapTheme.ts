@@ -7,12 +7,23 @@ export const STATUS_COLORS: Record<FusionTarget['status'], string> = {
   abnormal: '#f5b84b',
 }
 
+export const TARGET_TYPE_COLORS: Record<FusionTarget['type'], string> = {
+  normal: '#66B707',
+  sanwu: '#d81e06',
+}
+
 export const SOURCE_COLORS: Record<TargetSource, string> = {
   phased: '#ffa94d',
   xband1: '#ffd166',
   xband2: '#f472b6',
   ais: '#38c6ff',
   framecode: '#7c9cff',
+}
+
+export const TARGET_MARKER_SIZE: Record<MarkerSize, number> = {
+  small: 20,
+  medium: 24,
+  large: 28,
 }
 
 export const MARKER_RADIUS: Record<MarkerSize, number> = {

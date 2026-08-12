@@ -5,15 +5,16 @@ import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
-import { JURISDICTION_BOUNDS, TARGET_SOURCE_LABELS, TARGET_STATUS_LABELS } from '@/types/maritime'
-import type { EoDevice, FenceZone, FusionTarget, LatLng } from '@/types/maritime'
+import { ALARM_LEVEL_LABELS, JURISDICTION_BOUNDS, TARGET_SOURCE_LABELS, TARGET_STATUS_LABELS } from '@/types/maritime'
+import type { EoDevice, FenceZone, FusionTarget, LatLng, TrackPoint } from '@/types/maritime'
 import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
 import { RADAR_STATIONS } from '@/utils/maritimeGeography'
 import type { RadarStation } from '@/utils/maritimeGeography'
-import { clusterRadius, markerRadius } from '@/utils/maritimeMapTheme'
+import { TARGET_MARKER_SIZE, clusterRadius, markerRadius } from '@/utils/maritimeMapTheme'
 import {
   buildEoScreenItems,
   buildScreenItems,
+  buildTrackTimeLabel,
   drawEoDevices,
   drawGrid,
   drawMeasure,
@@ -21,9 +22,13 @@ import {
   drawPickPoint,
   drawRadar,
   drawRadarStations,
+  drawTargetTrack,
   drawZoneMarkers,
   drawTargets,
+  formatTrackTime,
   isCluster,
+  preloadTargetMarkers,
+  trackMotionStatus,
 } from '@/utils/maritimeCanvasLayers'
 import type { MapLayerContext, ScreenCluster } from '@/utils/maritimeCanvasLayers'
 
@@ -58,9 +63,17 @@ interface DragState {
 type MapHit =
   | { kind: 'cluster'; item: ScreenCluster }
   | { kind: 'vessel'; target: FusionTarget }
+  | TrackHit
   | { kind: 'radar'; station: RadarStation }
   | { kind: 'eo'; device: EoDevice }
   | { kind: 'zone'; zone: FenceZone }
+
+interface TrackHit {
+  kind: 'track'
+  point: TrackPoint
+  target: FusionTarget
+  previous: TrackPoint | null
+}
 
 interface MapRuntime {
   canvasRef: Ref<HTMLCanvasElement | null>
@@ -286,6 +299,7 @@ function buildLayerContext(runtime: MapRuntime, ctx: CanvasRenderingContext2D): 
     pickedPoint: mapStore.pickedPoint,
     highlightId: mapStore.highlightId,
     selectedId: targetsStore.selectedId,
+    selectedTrack: targetsStore.track,
     eoDevices: EO_DEVICES,
     zones: FENCE_ZONES,
     selectedCategory: mapStore.selectedCategory,
@@ -306,7 +320,10 @@ function renderMap(runtime: MapRuntime) {
   if (runtime.mapStore.layers.zones) drawZoneMarkers(ctx, context)
   if (runtime.mapStore.layers.radar) drawRadarStations(ctx, context)
   if (runtime.mapStore.layers.eo) drawEoDevices(ctx, context)
-  if (runtime.mapStore.layers.vessels) drawTargets(ctx, context)
+  if (runtime.mapStore.layers.vessels) {
+    drawTargetTrack(ctx, context)
+    drawTargets(ctx, context)
+  }
   drawMeasure(ctx, (point: LatLng) => projectPoint(runtime, point), runtime.mapStore.measurePoints)
   if (runtime.mapStore.mode === 'pick' && runtime.mapStore.pickedPoint) {
     drawPickPoint(ctx, (point: LatLng) => projectPoint(runtime, point), runtime.mapStore.pickedPoint)
@@ -368,11 +385,36 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
 
   if (mapStore.layers.vessels) {
     const radius = markerRadius(mapStore.targetStyle.markerSize)
+    const markerSize = TARGET_MARKER_SIZE[mapStore.targetStyle.markerSize]
     for (const item of buildScreenItems(targetsStore.targets, project, mapStore.zoom)) {
       const distance = Math.hypot(item.x - x, item.y - y)
-      const threshold = isCluster(item) ? clusterRadius(item.targets.length) + 4 : radius + 6
+      const threshold = isCluster(item)
+        ? clusterRadius(item.targets.length) + 4
+        : Math.max(radius + 8, markerSize * 0.5 + 4)
       if (distance <= threshold) {
         return isCluster(item) ? { kind: 'cluster', item } : { kind: 'vessel', target: item.target }
+      }
+    }
+  }
+
+  if (mapStore.layers.vessels && targetsStore.selectedId && targetsStore.track.length > 0) {
+    const target = targetsStore.targets.find((item) => item.id === targetsStore.selectedId)
+    if (target) {
+      const track = targetsStore.track
+      for (let index = track.length - 1; index >= 0; index -= 1) {
+        const point = track[index]
+        const projected = project(point)
+        const distance = Math.hypot(projected.x - x, projected.y - y)
+        const label = buildTrackTimeLabel(point, index, track.length, projected, mapStore.zoom)
+        const labelHit =
+          label !== null &&
+          x >= label.x - 2 &&
+          x <= label.x + label.width + 2 &&
+          y >= label.y - 2 &&
+          y <= label.y + label.height + 2
+        if (distance <= 7 || labelHit) {
+          return { kind: 'track', point, target, previous: track[index - 1] ?? null }
+        }
       }
     }
   }
@@ -397,6 +439,21 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
     }
   }
   return null
+}
+
+function showTrackHover(runtime: MapRuntime, hit: TrackHit, x: number, y: number) {
+  const status = trackMotionStatus(hit.point, hit.previous)
+  runtime.hoverInfo.value = {
+    title: `${hit.target.name} · 轨迹点`,
+    rows: [
+      `时间 ${formatTrackTime(hit.point.time)}`,
+      `航向 ${hit.point.course.toFixed(1)}°`,
+      `航速 ${hit.point.speed.toFixed(1)} kn`,
+      ...(status ? [`状态 ${status}`] : []),
+    ],
+    x,
+    y,
+  }
 }
 
 function updateMapHover(runtime: MapRuntime, x: number, y: number) {
@@ -447,6 +504,10 @@ function updateMapHover(runtime: MapRuntime, x: number, y: number) {
     }
     return
   }
+  if (item.kind === 'track') {
+    showTrackHover(runtime, item, x, y)
+    return
+  }
   if (item.kind === 'radar') {
     const station = item.station
     runtime.hoverInfo.value = {
@@ -481,8 +542,9 @@ function updateMapHover(runtime: MapRuntime, x: number, y: number) {
       title: zone.name,
       rows: [
         `编号 ${zone.id}`,
+        `告警等级 ${ALARM_LEVEL_LABELS[zone.alarmLevel]}`,
         `面积 ${zone.areaKm2} km² · ${zone.enabled ? '启用' : '停用'}`,
-        `告警 ${zone.alarmCount}`,
+        `关联告警 ${zone.alarmCount} 条`,
       ],
       x,
       y,
@@ -534,7 +596,11 @@ function handleMapClick(runtime: MapRuntime, x: number, y: number) {
     }
     mapStore.clearMonitorSelection()
     targetsStore.selectTarget(target.id)
-    mapStore.focusTarget(target, Math.max(2.6, mapStore.zoom))
+    mapStore.focusTarget(target, Math.max(2.8, mapStore.zoom))
+    return
+  }
+  if (item.kind === 'track') {
+    showTrackHover(runtime, item, x, y)
     return
   }
   if (item.kind === 'radar') {
@@ -748,12 +814,14 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
         () => mapStore.selectedCategoryId,
         () => targetsStore.targets,
         () => targetsStore.selectedId,
+        () => targetsStore.track,
       ],
       () => scheduleRender(runtime),
       { flush: 'post' },
     )
     runtime.disposeStoreWatch = stopRenderWatch
     scheduleRender(runtime)
+    preloadTargetMarkers(() => scheduleRender(runtime))
   })
 
   onBeforeUnmount(() => {
