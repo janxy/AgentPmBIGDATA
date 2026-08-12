@@ -1,5 +1,15 @@
 <template>
   <header class="maritime-header-bar">
+    <div class="header-time">
+      <span class="time-icon">
+        <el-icon><Clock /></el-icon>
+      </span>
+      <span class="time-meta">
+        <strong>{{ timeText }}</strong>
+        <span>{{ dateText }}</span>
+      </span>
+    </div>
+
     <div class="header-brand">
       <div class="brand-title">
         <span class="brand-dot" />
@@ -8,84 +18,54 @@
       <span class="brand-scene">全域态势 · 多源融合</span>
     </div>
 
-    <div class="header-status">
-      <div class="status-item">
-        <b>{{ total }}</b>
-        <span>目标总数</span>
-      </div>
-      <div class="status-item">
-        <b>{{ sourceCounts.radar }}</b>
-        <span>雷达</span>
-      </div>
-      <div class="status-item">
-        <b>{{ sourceCounts.ais }}</b>
-        <span>AIS</span>
-      </div>
-      <div class="status-item">
-        <b>{{ sourceCounts.framecode }}</b>
-        <span>帧码</span>
-      </div>
-      <div class="status-item status-item--alarm">
-        <b>{{ alarmCount }}</b>
-        <span>待处置告警</span>
-      </div>
-    </div>
-
-    <span v-if="dataStatus" class="header-message" role="status">{{ dataStatus }}</span>
-
-    <div class="header-actions">
-      <el-tooltip content="智能执法" placement="bottom">
-        <button type="button" class="header-btn header-btn--law" aria-label="智能执法" @click="emit('open-law-enforce')">
-          <el-icon><MagicStick /></el-icon>
-          <span>智能执法</span>
+    <div class="header-right">
+      <span v-if="dataStatus" class="header-message" role="status">{{ dataStatus }}</span>
+      <div class="header-actions">
+        <el-tooltip content="智能执法" placement="bottom">
+          <button type="button" class="header-btn header-btn--law" aria-label="智能执法" @click="emit('open-law-enforce')">
+            <el-icon><MagicStick /></el-icon>
+            <span>智能执法</span>
+          </button>
+        </el-tooltip>
+        <el-tooltip content="演示数据维护" placement="bottom">
+          <button type="button" class="header-btn" aria-label="演示数据维护" @click="emit('open-data-admin')">
+            <el-icon><Setting /></el-icon>
+          </button>
+        </el-tooltip>
+        <el-tooltip content="刷新数据" placement="bottom">
+          <button
+            type="button"
+            class="header-btn"
+            :class="{ 'header-btn--loading': refreshing }"
+            :disabled="refreshing"
+            aria-label="刷新数据"
+            @click="emit('refresh')"
+          >
+            <el-icon><RefreshRight /></el-icon>
+          </button>
+        </el-tooltip>
+        <el-tooltip :content="fullscreen ? '退出全屏' : '进入全屏'" placement="bottom">
+          <button type="button" class="header-btn" :aria-label="fullscreen ? '退出全屏' : '进入全屏'" @click="emit('toggle-fullscreen')">
+            <el-icon><FullScreen /></el-icon>
+          </button>
+        </el-tooltip>
+        <button type="button" class="header-btn header-btn--alarm" aria-label="模拟告警效果" @click="emit('simulate-alarm')">
+          <el-icon><Warning /></el-icon>
+          <span>模拟告警效果</span>
         </button>
-      </el-tooltip>
-      <el-tooltip content="演示数据维护" placement="bottom">
-        <button type="button" class="header-btn" aria-label="演示数据维护" @click="emit('open-data-admin')">
-          <el-icon><Setting /></el-icon>
-        </button>
-      </el-tooltip>
-      <el-tooltip content="刷新数据" placement="bottom">
-        <button
-          type="button"
-          class="header-btn"
-          :class="{ 'header-btn--loading': refreshing }"
-          :disabled="refreshing"
-          aria-label="刷新数据"
-          @click="emit('refresh')"
-        >
-          <el-icon><RefreshRight /></el-icon>
-        </button>
-      </el-tooltip>
-      <el-tooltip :content="fullscreen ? '退出全屏' : '进入全屏'" placement="bottom">
-        <button type="button" class="header-btn" :aria-label="fullscreen ? '退出全屏' : '进入全屏'" @click="emit('toggle-fullscreen')">
-          <el-icon><FullScreen /></el-icon>
-        </button>
-      </el-tooltip>
-      <button type="button" class="header-btn header-btn--alarm" aria-label="模拟告警效果" @click="emit('simulate-alarm')">
-        <el-icon><Warning /></el-icon>
-        <span>模拟告警效果</span>
-      </button>
-    </div>
-
-    <div class="header-time">
-      <strong>{{ timeText }}</strong>
-      <span>{{ dateText }}</span>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
 /**
- * 大屏顶部区域：平台标题、场景标签、状态摘要、系统时间与全屏/刷新入口。
+ * 大屏顶部区域：居中平台标题、左侧系统时间与右侧功能入口。
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { FullScreen, MagicStick, RefreshRight, Setting, Warning } from '@element-plus/icons-vue'
+import { Clock, FullScreen, MagicStick, RefreshRight, Setting, Warning } from '@element-plus/icons-vue'
 
 defineProps<{
-  total: number
-  sourceCounts: { radar: number; ais: number; framecode: number }
-  alarmCount: number
   fullscreen: boolean
   refreshing: boolean
   dataStatus: string
@@ -126,9 +106,9 @@ onBeforeUnmount(() => {
 .maritime-header-bar {
   position: relative;
   display: grid;
-  grid-template-columns: 430px minmax(0, 1fr) minmax(0, 240px) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  padding: 0 8px 0 24px;
+  padding: 0 16px;
   overflow: hidden;
   isolation: isolate;
   color: var(--mar-text);
@@ -187,12 +167,95 @@ onBeforeUnmount(() => {
   }
 }
 
-.header-brand {
+.header-time {
   display: flex;
-  align-items: baseline;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
   grid-column: 1;
+  justify-self: start;
+}
+
+.header-time::after {
+  content: '';
+  width: 1px;
+  height: 34px;
+  margin-left: 18px;
+  background: linear-gradient(180deg, transparent, var(--mar-line-soft), transparent);
+}
+
+.time-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--mar-accent);
+  background: rgba(56, 198, 255, 0.08);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.time-icon .el-icon {
+  font-size: 20px;
+}
+
+.time-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.time-meta strong {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--mar-text);
+  font-family: 'DIN Alternate', 'PingFang SC', sans-serif;
+  white-space: nowrap;
+}
+
+.time-meta span {
+  margin-top: 4px;
+  color: var(--mar-text-faint);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.header-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 32px;
+  grid-column: 2;
+  text-align: center;
+}
+
+.header-brand::before,
+.header-brand::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 120px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.header-brand::before {
+  right: 100%;
+  margin-right: 28px;
+  background: linear-gradient(90deg, transparent, rgba(56, 198, 255, 0.55));
+}
+
+.header-brand::after {
+  left: 100%;
+  margin-left: 28px;
+  background: linear-gradient(90deg, rgba(56, 198, 255, 0.55), transparent);
 }
 
 .brand-title {
@@ -200,9 +263,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
   white-space: nowrap;
   background: linear-gradient(90deg, #f0f9ff 0%, #8ee6ff 25%, #38c6ff 48%, #8ee6ff 72%, #f0f9ff 100%);
   background-size: 200% auto;
@@ -258,8 +321,9 @@ onBeforeUnmount(() => {
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  margin-top: 4px;
   font-size: 13px;
-  letter-spacing: 1px;
+  letter-spacing: 3px;
   white-space: nowrap;
   animation: brand-scene-flow 4s linear infinite;
 }
@@ -308,64 +372,21 @@ onBeforeUnmount(() => {
   }
 }
 
-.header-status {
+.header-right {
   display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 4px;
-  min-width: 0;
-  grid-column: 2;
-}
-
-.status-item {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-width: 76px;
-  padding: 4px 8px;
-  border-left: 1px solid var(--mar-line-soft);
-}
-
-.status-item b {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--mar-accent);
-  font-family: 'DIN Alternate', 'PingFang SC', sans-serif;
-}
-
-.status-item--alarm b {
-  color: var(--mar-amber);
-}
-
-.status-item span {
-  margin-top: 5px;
-  color: var(--mar-text-dim);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.header-time {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
   min-width: 0;
-  margin-left: 16px;
-  grid-column: 5;
+  grid-column: 3;
 }
 
-.header-time strong {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--mar-text);
-  font-family: 'DIN Alternate', 'PingFang SC', sans-serif;
-}
-
-.header-time span {
-  margin-top: 2px;
-  color: var(--mar-text-faint);
-  font-size: 12px;
+.header-right::before {
+  content: '';
+  width: 1px;
+  height: 34px;
+  margin-right: 14px;
+  background: linear-gradient(180deg, transparent, var(--mar-line-soft), transparent);
 }
 
 .header-actions {
@@ -373,12 +394,11 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  grid-column: 4;
 }
 
 .header-message {
   min-width: 0;
-  max-width: 240px;
+  max-width: 220px;
   padding: 5px 10px;
   overflow: hidden;
   color: var(--mar-amber);
@@ -388,8 +408,6 @@ onBeforeUnmount(() => {
   background: rgba(245, 184, 75, 0.1);
   border: 1px solid rgba(245, 184, 75, 0.35);
   border-radius: 6px;
-  justify-self: end;
-  grid-column: 3;
 }
 
 .header-btn {

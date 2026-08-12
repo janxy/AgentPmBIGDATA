@@ -11,9 +11,6 @@
       >
         <MaritimeHeader
           class="maritime-header"
-          :total="totalTargets"
-          :source-counts="sourceCounts"
-          :alarm-count="alarmPendingCount"
           :fullscreen="fullscreen"
           :refreshing="refreshing"
           :data-status="dataStatus"
@@ -50,7 +47,7 @@
 <script setup lang="ts">
 /**
  * 海上全域感知大屏入口：以 1920×1080 等比缩放的独立全屏页面组织
- * 顶部状态区、目标监控、地图态势、目标详情、告警滚动与视图工具区域。
+ * 顶部标题与操作区、目标监控、地图态势、目标详情、告警滚动与视图工具区域。
  */
 import MaritimeHeader from './components/MaritimeHeader.vue'
 import TargetMonitorPanel from './components/TargetMonitorPanel.vue'
@@ -72,9 +69,6 @@ const uiStore = useMaritimeUiStore()
 const targetsStore = useMaritimeTargetsStore()
 const alarmsStore = useMaritimeAlarmsStore()
 
-const totalTargets = computed(() => targetsStore.targets.length)
-const sourceCounts = computed(() => targetsStore.sourceCounts)
-const alarmPendingCount = computed(() => alarmsStore.pendingCount)
 const refreshing = computed(() => targetsStore.refreshing || alarmsStore.refreshing)
 const dataStatus = computed(() => targetsStore.errorMessage || alarmsStore.errorMessage)
 const alarmFlashCount = ref(0)

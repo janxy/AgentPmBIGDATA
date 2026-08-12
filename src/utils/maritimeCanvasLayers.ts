@@ -123,6 +123,7 @@ export interface MapLayerContext {
   width: number
   height: number
   zoom: number
+  now: number
   project: (point: LatLng) => { x: number; y: number }
   unproject: (x: number, y: number) => LatLng
   targets: FusionTarget[]
@@ -658,7 +659,7 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
   const marker = getTargetMarker(target.type)
   const followed = context.followedIds.includes(target.id)
 
-  if (followed) drawFollowHalo(ctx, point.x, point.y, markerSize)
+  if (followed) drawFollowHalo(ctx, point.x, point.y, markerSize, context.now)
 
   if (active) {
     ctx.save()
@@ -677,7 +678,6 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
     ctx.rotate(((target.course - 180) * Math.PI) / 180)
     ctx.drawImage(marker, -markerSize / 2, -markerSize, markerSize, markerSize)
     ctx.restore()
-    if (followed) drawFollowBadge(ctx, point.x, point.y, markerSize)
     return
   }
 
@@ -691,59 +691,56 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
   ctx.fillStyle = 'rgba(3, 14, 24, 0.85)'
   ctx.fill()
   ctx.restore()
-  if (followed) drawFollowBadge(ctx, point.x, point.y, markerSize)
 }
 
-function drawFollowHalo(ctx: CanvasRenderingContext2D, x: number, y: number, markerSize: number) {
+/** 关注船只黄圈：基础圈呼吸、虚线环旋转并向外扩散脉冲，动态标识关注状态。 */
+function drawFollowHalo(ctx: CanvasRenderingContext2D, x: number, y: number, markerSize: number, now = 0) {
   const radius = Math.max(markerSize * 0.72 + 4, 11)
+  const cycle = (now % 1800) / 1800
+  const angle = cycle * Math.PI * 2
+  const pulse = (Math.sin(angle - Math.PI / 2) + 1) / 2
+
   ctx.save()
   ctx.strokeStyle = 'rgba(255, 209, 102, 0.9)'
   ctx.lineWidth = 1.4
+  ctx.globalAlpha = 0.7 + pulse * 0.2
   ctx.beginPath()
   ctx.arc(x, y, radius, 0, Math.PI * 2)
   ctx.stroke()
-  ctx.globalAlpha = 0.5
-  ctx.setLineDash([4, 4])
+
+  ctx.lineWidth = 1.3
+  ctx.globalAlpha = 0.45 + pulse * 0.25
+  ctx.setLineDash([5, 5])
+  ctx.lineDashOffset = -cycle * 28
   ctx.beginPath()
   ctx.arc(x, y, radius + 4, 0, Math.PI * 2)
   ctx.stroke()
-  ctx.restore()
-}
 
-function drawFollowBadge(ctx: CanvasRenderingContext2D, x: number, y: number, markerSize: number) {
-  const radius = Math.max(markerSize * 0.72 + 4, 11)
-  const badgeX = x + radius + 5
-  const badgeY = y - radius - 2
-  const starRadius = 5
-  ctx.save()
-  ctx.fillStyle = '#ffd166'
-  ctx.strokeStyle = 'rgba(4, 13, 25, 0.9)'
-  ctx.lineWidth = 1.2
+  ctx.setLineDash([])
+  ctx.globalAlpha = (1 - pulse) * 0.55
+  ctx.lineWidth = 1.5
   ctx.beginPath()
-  for (let i = 0; i < 10; i += 1) {
-    const angle = -Math.PI / 2 + (i * Math.PI) / 5
-    const r = i % 2 === 0 ? starRadius : starRadius * 0.42
-    const px = badgeX + Math.cos(angle) * r
-    const py = badgeY + Math.sin(angle) * r
-    if (i === 0) ctx.moveTo(px, py)
-    else ctx.lineTo(px, py)
-  }
-  ctx.closePath()
-  ctx.fill()
+  ctx.arc(x, y, radius + 4 + pulse * 12, 0, Math.PI * 2)
   ctx.stroke()
   ctx.restore()
 }
 
 export function drawTargets(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
   for (const item of buildScreenItems(context.targets, context.project, context.zoom, context.followedIds)) {
-    if (isCluster(item)) drawCluster(ctx, item)
-    else {
+    if (isCluster(item)) {
+      const dimmed = Boolean(context.selectedId) && !item.targets.some((target) => target.id === context.selectedId)
+      ctx.save()
+      if (dimmed) ctx.globalAlpha = 0.25
+      drawCluster(ctx, item)
+      ctx.restore()
+    } else {
       const dimmed = Boolean(context.selectedId) && item.target.id !== context.selectedId
       const followed = context.followedIds.includes(item.target.id)
       ctx.save()
       if (dimmed) {
         const hovered = context.highlightId === item.target.id
-        ctx.globalAlpha = followed ? 0.8 : hovered ? 0.7 : 0.35
+        // 选中目标后其余船只弱化为半透明，关注与悬停目标保持清晰。
+        ctx.globalAlpha = followed ? 0.8 : hovered ? 0.7 : 0.25
       }
       drawTarget(ctx, context, item.target)
       ctx.restore()

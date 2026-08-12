@@ -290,6 +290,7 @@ function buildLayerContext(runtime: MapRuntime, ctx: CanvasRenderingContext2D): 
     width: runtime.width,
     height: runtime.height,
     zoom: mapStore.zoom,
+    now: performance.now(),
     project: (point: LatLng) => projectPoint(runtime, point),
     unproject: (x: number, y: number) => unprojectPoint(runtime, x, y),
     targets: targetsStore.targets,
@@ -329,6 +330,10 @@ function renderMap(runtime: MapRuntime) {
   drawMeasure(ctx, (point: LatLng) => projectPoint(runtime, point), runtime.mapStore.measurePoints)
   if (runtime.mapStore.mode === 'pick' && runtime.mapStore.pickedPoint) {
     drawPickPoint(ctx, (point: LatLng) => projectPoint(runtime, point), runtime.mapStore.pickedPoint)
+  }
+  // 有关注船只时保持逐帧重绘，驱动关注黄圈动效。
+  if (runtime.mapStore.layers.vessels && runtime.targetsStore.followedIds.length > 0) {
+    scheduleRender(runtime)
   }
 }
 
