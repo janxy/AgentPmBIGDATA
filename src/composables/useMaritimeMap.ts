@@ -15,6 +15,7 @@ import {
   buildEoScreenItems,
   buildScreenItems,
   buildTrackTimeLabel,
+  buildZoneScreenItems,
   drawEoDevices,
   drawGrid,
   drawMeasure,
@@ -23,8 +24,8 @@ import {
   drawRadar,
   drawRadarStations,
   drawTargetTrack,
-  drawZoneMarkers,
   drawTargets,
+  drawZones,
   formatTrackTime,
   isCluster,
   preloadTargetMarkers,
@@ -292,6 +293,7 @@ function buildLayerContext(runtime: MapRuntime, ctx: CanvasRenderingContext2D): 
     project: (point: LatLng) => projectPoint(runtime, point),
     unproject: (x: number, y: number) => unprojectPoint(runtime, x, y),
     targets: targetsStore.targets,
+    followedIds: targetsStore.followedIds,
     layers: mapStore.layers,
     targetStyle: mapStore.targetStyle,
     mode: mapStore.mode,
@@ -317,7 +319,7 @@ function renderMap(runtime: MapRuntime) {
   ctx.clearRect(0, 0, runtime.width, runtime.height)
   const context = buildLayerContext(runtime, ctx)
   drawStaticLayers(runtime, ctx)
-  if (runtime.mapStore.layers.zones) drawZoneMarkers(ctx, context)
+  if (runtime.mapStore.layers.zones) drawZones(ctx, context)
   if (runtime.mapStore.layers.radar) drawRadarStations(ctx, context)
   if (runtime.mapStore.layers.eo) drawEoDevices(ctx, context)
   if (runtime.mapStore.layers.vessels) {
@@ -386,7 +388,7 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
   if (mapStore.layers.vessels) {
     const radius = markerRadius(mapStore.targetStyle.markerSize)
     const markerSize = TARGET_MARKER_SIZE[mapStore.targetStyle.markerSize]
-    for (const item of buildScreenItems(targetsStore.targets, project, mapStore.zoom)) {
+    for (const item of buildScreenItems(targetsStore.targets, project, mapStore.zoom, targetsStore.followedIds)) {
       const distance = Math.hypot(item.x - x, item.y - y)
       const threshold = isCluster(item)
         ? clusterRadius(item.targets.length) + 4
@@ -433,12 +435,22 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
   }
 
   if (mapStore.layers.zones) {
-    for (const zone of FENCE_ZONES) {
-      const point = project(zone)
-      if (Math.hypot(point.x - x, point.y - y) <= 12) return { kind: 'zone', zone }
+    for (const item of buildZoneScreenItems(FENCE_ZONES, project)) {
+      if (pointInPolygon(x, y, item.points)) return { kind: 'zone', zone: item.zone }
     }
   }
   return null
+}
+
+function pointInPolygon(x: number, y: number, points: Array<{ x: number; y: number }>) {
+  let inside = false
+  for (let index = 0, previous = points.length - 1; index < points.length; previous = index, index += 1) {
+    const current = points[index]
+    const before = points[previous]
+    const intersects = current.y > y !== before.y > y && x < ((before.x - current.x) * (y - current.y)) / (before.y - current.y) + current.x
+    if (intersects) inside = !inside
+  }
+  return inside
 }
 
 function showTrackHover(runtime: MapRuntime, hit: TrackHit, x: number, y: number) {
@@ -488,6 +500,7 @@ function updateMapHover(runtime: MapRuntime, x: number, y: number) {
   }
   if (item.kind === 'vessel') {
     const target = item.target
+    const followed = runtime.targetsStore.followedIds.includes(target.id)
     const statusRows = [`状态 ${TARGET_STATUS_LABELS[target.status]} · ${target.sources.map((s) => TARGET_SOURCE_LABELS[s]).join('/') || '无来源'}`]
     if (target.status === 'offline' || target.status === 'abnormal') {
       statusRows.push('该目标数据已超时，显示最近位置')
@@ -497,6 +510,7 @@ function updateMapHover(runtime: MapRuntime, x: number, y: number) {
       rows: [
         `MMSI ${target.mmsi}`,
         `航速 ${target.speed.toFixed(1)} kn · 航向 ${target.course.toFixed(1)}°`,
+        ...(followed ? ['已关注'] : []),
         ...statusRows,
       ],
       x,
@@ -813,6 +827,7 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
         () => mapStore.selectedCategory,
         () => mapStore.selectedCategoryId,
         () => targetsStore.targets,
+        () => targetsStore.followedIds,
         () => targetsStore.selectedId,
         () => targetsStore.track,
       ],

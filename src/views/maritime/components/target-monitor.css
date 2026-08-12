@@ -304,6 +304,25 @@
   white-space: nowrap;
 }
 
+.tm-row__follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  padding: 0 5px;
+  color: var(--mar-amber);
+  font-size: 10px;
+  line-height: 1;
+  background: rgba(245, 184, 75, 0.14);
+  border: 1px solid rgba(245, 184, 75, 0.4);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tm-row__follow-icon {
+  font-size: 11px;
+}
+
 .tm-row__mmsi {
   min-width: 0;
   overflow: hidden;

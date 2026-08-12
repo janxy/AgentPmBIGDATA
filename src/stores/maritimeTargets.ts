@@ -46,12 +46,14 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
     detailLoading: false,
     overview: null as MaritimeStats | null,
     detailRequestSeq: 0,
+    followedIds: [] as string[],
   }),
 
   getters: {
     filteredTargets(state) {
       const { sources: sourceFilter, statuses, types, keyword } = state.filter
       const kw = keyword.trim().toLowerCase()
+      const followedIds = state.followedIds
       return state.targets
         .filter((t) => {
           if (kw && ![t.name, t.mmsi, t.id].some((v) => v.toLowerCase().includes(kw))) return false
@@ -60,7 +62,12 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
           if (types.length && !types.includes(t.type)) return false
           return true
         })
-        .sort((a, b) => b.lastUpdate.localeCompare(a.lastUpdate))
+        .sort((a, b) => {
+          const followedA = followedIds.includes(a.id) ? 0 : 1
+          const followedB = followedIds.includes(b.id) ? 0 : 1
+          if (followedA !== followedB) return followedA - followedB
+          return b.lastUpdate.localeCompare(a.lastUpdate)
+        })
     },
     filteredTotal(): number {
       return this.filteredTargets.length
@@ -148,6 +155,16 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
     setPageSize(next: number) {
       this.pageSize = next
       this.page = 1
+    },
+
+    toggleFollow(id: string) {
+      this.followedIds = this.followedIds.includes(id)
+        ? this.followedIds.filter((item) => item !== id)
+        : [...this.followedIds, id]
+    },
+
+    isFollowed(id: string) {
+      return this.followedIds.includes(id)
     },
 
     async loadDetail(id: string) {

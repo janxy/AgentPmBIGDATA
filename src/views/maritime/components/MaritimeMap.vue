@@ -30,6 +30,10 @@
         <img class="maritime-map-legend__icon" :src="sanwuMarker" alt="三无船舶" />
         <span>三无船舶</span>
       </span>
+      <span class="maritime-map-legend__item">
+        <span class="maritime-map-legend__follow">★</span>
+        <span>关注船只</span>
+      </span>
     </div>
     <div v-if="mapStore.mode === 'pick' && mapStore.pickedPoint" class="maritime-map-mode-card">
       <span>拾取坐标</span>
@@ -211,6 +215,18 @@ const tooltipStyle = computed(() => ({
 .maritime-map-legend__icon {
   width: 15px;
   height: 15px;
+  flex-shrink: 0;
+}
+
+.maritime-map-legend__follow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  color: var(--mar-amber);
+  font-size: 14px;
+  line-height: 1;
   flex-shrink: 0;
 }
 

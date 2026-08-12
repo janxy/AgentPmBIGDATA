@@ -166,6 +166,10 @@
           >
             <span class="tm-row__top">
               <strong class="tm-row__name">{{ target.name || '-' }}</strong>
+              <span v-if="targetsStore.isFollowed(target.id)" class="tm-row__follow" title="已关注">
+                <el-icon class="tm-row__follow-icon"><StarFilled /></el-icon>
+                关注
+              </span>
               <span class="tm-row__mmsi">{{ target.mmsi || '-' }}</span>
               <span class="tm-row__time">{{ formatTime(target.lastUpdate) }}</span>
             </span>
@@ -314,7 +318,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import './target-monitor.css'
-import { Loading, Search, Ship } from '@element-plus/icons-vue'
+import { Loading, Search, Ship, StarFilled } from '@element-plus/icons-vue'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'

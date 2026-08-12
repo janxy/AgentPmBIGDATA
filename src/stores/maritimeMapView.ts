@@ -8,7 +8,7 @@ import { polylineDistanceMeters } from '@/utils/geo'
 export const useMaritimeMapViewStore = defineStore('maritimeMapView', () => {
   const center = ref<LatLng>({ ...DEFAULT_MAP_CENTER })
   const zoom = ref(DEFAULT_MAP_ZOOM)
-  const layers = ref<LayerState>({ vessels: true, radar: false, eo: false, zones: false })
+  const layers = ref<LayerState>({ vessels: true, radar: false, eo: false, zones: true })
   const targetStyle = ref({ markerSize: 'medium' as MarkerSize })
   const mode = ref<MapMode>('view')
   const pickedPoint = ref<LatLng | null>(null)

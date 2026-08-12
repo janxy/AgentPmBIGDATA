@@ -18,9 +18,9 @@ interface FenceZoneSeed {
 }
 
 const FENCE_ZONE_SEEDS: FenceZoneSeed[] = [
-  { name: '厦门港紧急警戒区', lon: 118.08, lat: 24.44, radiusKm: 6, alarmLevel: 'urgent', alarmCount: 8 },
-  { name: '东渡锚地重要警戒区', lon: 118.14, lat: 24.46, radiusKm: 5, alarmLevel: 'important', alarmCount: 5 },
-  { name: '大嶝海域一般警戒区', lon: 118.29, lat: 24.42, radiusKm: 7.5, alarmLevel: 'normal', alarmCount: 2 },
+  { name: '厦门港紧急警戒区', lon: 118.03, lat: 24.36, radiusKm: 3.2, alarmLevel: 'urgent', alarmCount: 8 },
+  { name: '东渡锚地重要警戒区', lon: 118.21, lat: 24.39, radiusKm: 3.3, alarmLevel: 'important', alarmCount: 5 },
+  { name: '大嶝海域一般警戒区', lon: 118.27, lat: 24.36, radiusKm: 3.3, alarmLevel: 'normal', alarmCount: 2 },
 ]
 
 function mulberry32(seed: number) {

@@ -30,23 +30,23 @@ const ZONE_LEVEL_COLORS: Record<
   { fill: string; stroke: string; activeFill: string; activeStroke: string; text: string }
 > = {
   urgent: {
-    fill: 'rgba(255, 138, 107, 0.10)',
-    stroke: 'rgba(255, 138, 107, 0.52)',
-    activeFill: 'rgba(255, 138, 107, 0.24)',
+    fill: 'rgba(255, 138, 107, 0.06)',
+    stroke: 'rgba(255, 138, 107, 0.5)',
+    activeFill: 'rgba(255, 138, 107, 0.15)',
     activeStroke: '#ffb49e',
     text: 'rgba(255, 200, 182, 0.92)',
   },
   important: {
-    fill: 'rgba(255, 209, 102, 0.10)',
-    stroke: 'rgba(255, 209, 102, 0.52)',
-    activeFill: 'rgba(255, 209, 102, 0.24)',
+    fill: 'rgba(255, 209, 102, 0.06)',
+    stroke: 'rgba(255, 209, 102, 0.5)',
+    activeFill: 'rgba(255, 209, 102, 0.15)',
     activeStroke: '#ffe2a1',
     text: 'rgba(255, 233, 184, 0.92)',
   },
   normal: {
-    fill: 'rgba(86, 204, 255, 0.10)',
-    stroke: 'rgba(86, 204, 255, 0.52)',
-    activeFill: 'rgba(86, 204, 255, 0.24)',
+    fill: 'rgba(86, 204, 255, 0.06)',
+    stroke: 'rgba(86, 204, 255, 0.5)',
+    activeFill: 'rgba(86, 204, 255, 0.15)',
     activeStroke: '#9fdcff',
     text: 'rgba(196, 234, 255, 0.92)',
   },
@@ -126,6 +126,7 @@ export interface MapLayerContext {
   project: (point: LatLng) => { x: number; y: number }
   unproject: (x: number, y: number) => LatLng
   targets: FusionTarget[]
+  followedIds: string[]
   layers: LayerState
   targetStyle: TargetStyleState
   mode: MapMode
@@ -148,6 +149,7 @@ export function buildScreenItems(
   targets: FusionTarget[],
   project: (point: LatLng) => { x: number; y: number },
   zoom: number,
+  followedIds: string[] = [],
 ): ScreenItem[] {
   const items: ScreenTarget[] = targets.map((target) => ({
     target,
@@ -155,6 +157,7 @@ export function buildScreenItems(
   }))
   if (items.length < 50 || zoom >= 2.8) return items
 
+  const followedSet = new Set(followedIds)
   const cellSize = Math.max(24, 46 / Math.max(1, zoom * 0.7))
   const groups = new Map<string, ScreenTarget[]>()
   for (const item of items) {
@@ -163,14 +166,23 @@ export function buildScreenItems(
     if (list) list.push(item)
     else groups.set(key, [item])
   }
-  return Array.from(groups.values()).map((list) => {
-    if (list.length === 1) return list[0]
-    return {
-      targets: list.map((item) => item.target),
-      x: list.reduce((sum, item) => sum + item.x, 0) / list.length,
-      y: list.reduce((sum, item) => sum + item.y, 0) / list.length,
+  const result: ScreenItem[] = []
+  for (const list of groups.values()) {
+    const followed = list.filter((item) => followedSet.has(item.target.id))
+    const rest = list.filter((item) => !followedSet.has(item.target.id))
+    result.push(...followed)
+    if (rest.length === 0) continue
+    if (rest.length === 1) {
+      result.push(rest[0])
+      continue
     }
-  })
+    result.push({
+      targets: rest.map((item) => item.target),
+      x: rest.reduce((sum, item) => sum + item.x, 0) / rest.length,
+      y: rest.reduce((sum, item) => sum + item.y, 0) / rest.length,
+    })
+  }
+  return result
 }
 
 export function buildEoScreenItems(
@@ -202,10 +214,10 @@ function zonePolygon(zone: FenceZone): LatLng[] {
   for (const char of zone.id) seed = (seed * 31 + char.charCodeAt(0)) % 997
   const skew = (seed % 100) / 100
   const cosLat = Math.cos((zone.lat * Math.PI) / 180)
-  const count = 8
+  const count = 12
   return Array.from({ length: count }, (_, index) => {
     const angle = (Math.PI * 2 * index) / count + skew * 1.1
-    const radius = zone.radiusKm * (0.68 + 0.32 * Math.abs(Math.sin(seed + index * 2.3)))
+    const radius = zone.radiusKm * (0.86 + 0.14 * Math.sin(seed + index * 2.1))
     return {
       lon: zone.lon + (Math.cos(angle) * radius) / (KM_PER_DEG * cosLat),
       lat: zone.lat + (Math.sin(angle) * radius) / KM_PER_DEG,
@@ -399,8 +411,8 @@ export function drawZones(ctx: CanvasRenderingContext2D, context: MapLayerContex
     ctx.fillStyle = active ? color.activeFill : color.fill
     ctx.fill()
     ctx.strokeStyle = active ? color.activeStroke : color.stroke
-    ctx.lineWidth = active ? 1.8 : 1.2
-    ctx.setLineDash([7, 5])
+    ctx.lineWidth = active ? 2 : 1.4
+    ctx.setLineDash([10, 8])
     ctx.stroke()
     ctx.setLineDash([])
 
@@ -408,26 +420,6 @@ export function drawZones(ctx: CanvasRenderingContext2D, context: MapLayerContex
     ctx.font = '12px "PingFang SC", sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(zone.name, item.x, item.y - 8)
-  }
-  ctx.restore()
-}
-
-export function drawZoneMarkers(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
-  const zones = context.zones.length > 0 ? context.zones : FENCE_ZONES
-  ctx.save()
-  for (const zone of zones) {
-    const point = context.project(zone)
-    const active = context.selectedCategory === 'fence' && context.selectedCategoryId === zone.id
-    const color = ZONE_LEVEL_COLORS[zone.alarmLevel] ?? ZONE_LEVEL_COLORS.normal
-    ctx.save()
-    ctx.translate(point.x, point.y)
-    ctx.rotate(Math.PI / 4)
-    ctx.fillStyle = 'rgba(3, 14, 24, 0.88)'
-    ctx.strokeStyle = active ? color.activeStroke : color.stroke
-    ctx.lineWidth = active ? 1.8 : 1.2
-    ctx.fillRect(-5, -5, 10, 10)
-    ctx.strokeRect(-5, -5, 10, 10)
-    ctx.restore()
   }
   ctx.restore()
 }
@@ -664,6 +656,9 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
   const color = TARGET_TYPE_COLORS[target.type]
   const active = context.highlightId === target.id || context.selectedId === target.id
   const marker = getTargetMarker(target.type)
+  const followed = context.followedIds.includes(target.id)
+
+  if (followed) drawFollowHalo(ctx, point.x, point.y, markerSize)
 
   if (active) {
     ctx.save()
@@ -682,6 +677,7 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
     ctx.rotate(((target.course - 180) * Math.PI) / 180)
     ctx.drawImage(marker, -markerSize / 2, -markerSize, markerSize, markerSize)
     ctx.restore()
+    if (followed) drawFollowBadge(ctx, point.x, point.y, markerSize)
     return
   }
 
@@ -695,17 +691,59 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
   ctx.fillStyle = 'rgba(3, 14, 24, 0.85)'
   ctx.fill()
   ctx.restore()
+  if (followed) drawFollowBadge(ctx, point.x, point.y, markerSize)
+}
+
+function drawFollowHalo(ctx: CanvasRenderingContext2D, x: number, y: number, markerSize: number) {
+  const radius = Math.max(markerSize * 0.72 + 4, 11)
+  ctx.save()
+  ctx.strokeStyle = 'rgba(255, 209, 102, 0.9)'
+  ctx.lineWidth = 1.4
+  ctx.beginPath()
+  ctx.arc(x, y, radius, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.globalAlpha = 0.5
+  ctx.setLineDash([4, 4])
+  ctx.beginPath()
+  ctx.arc(x, y, radius + 4, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.restore()
+}
+
+function drawFollowBadge(ctx: CanvasRenderingContext2D, x: number, y: number, markerSize: number) {
+  const radius = Math.max(markerSize * 0.72 + 4, 11)
+  const badgeX = x + radius + 5
+  const badgeY = y - radius - 2
+  const starRadius = 5
+  ctx.save()
+  ctx.fillStyle = '#ffd166'
+  ctx.strokeStyle = 'rgba(4, 13, 25, 0.9)'
+  ctx.lineWidth = 1.2
+  ctx.beginPath()
+  for (let i = 0; i < 10; i += 1) {
+    const angle = -Math.PI / 2 + (i * Math.PI) / 5
+    const r = i % 2 === 0 ? starRadius : starRadius * 0.42
+    const px = badgeX + Math.cos(angle) * r
+    const py = badgeY + Math.sin(angle) * r
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
 }
 
 export function drawTargets(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
-  for (const item of buildScreenItems(context.targets, context.project, context.zoom)) {
+  for (const item of buildScreenItems(context.targets, context.project, context.zoom, context.followedIds)) {
     if (isCluster(item)) drawCluster(ctx, item)
     else {
       const dimmed = Boolean(context.selectedId) && item.target.id !== context.selectedId
+      const followed = context.followedIds.includes(item.target.id)
       ctx.save()
       if (dimmed) {
         const hovered = context.highlightId === item.target.id
-        ctx.globalAlpha = hovered ? 0.7 : 0.35
+        ctx.globalAlpha = followed ? 0.8 : hovered ? 0.7 : 0.35
       }
       drawTarget(ctx, context, item.target)
       ctx.restore()

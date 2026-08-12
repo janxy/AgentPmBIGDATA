@@ -13,7 +13,13 @@
 
     <div v-else-if="detail" class="td-scroll">
       <section class="td-section">
-        <h3><el-icon><Document /></el-icon>基本信息</h3>
+        <h3>
+          <el-icon><Document /></el-icon>基本信息
+          <button type="button" class="td-follow" :class="{ 'is-followed': isFollowed }" @click="toggleFollow">
+            <el-icon><StarFilled v-if="isFollowed" /><Star v-else /></el-icon>
+            <span>{{ isFollowed ? '取消关注' : '关注' }}</span>
+          </button>
+        </h3>
         <dl class="td-grid">
           <div class="td-field">
             <dt>船名</dt>
@@ -163,7 +169,7 @@
             @click="handleFollow"
           >
             <el-icon><Guide /></el-icon>
-            <span>{{ tracking ? '跟踪中' : '跟踪' }}</span>
+            <span>{{ tracking ? '跟随中' : '跟随' }}</span>
           </button>
           <button type="button" class="td-action" @click="handleShowTrajectory">
             <el-icon><TrendCharts /></el-icon>
@@ -400,6 +406,8 @@ import {
   Location,
   Monitor,
   Operation,
+  Star,
+  StarFilled,
   TrendCharts,
   VideoCamera,
 } from '@element-plus/icons-vue'
@@ -467,6 +475,7 @@ const hasSelection = computed(() =>
   ),
 )
 const tracking = computed(() => Boolean(detail.value && mapStore.followId === detail.value.id))
+const isFollowed = computed(() => Boolean(detail.value && targetsStore.isFollowed(detail.value.id)))
 
 const sourceOptions = TARGET_SOURCE_OPTIONS.map((value) => ({ value, label: TARGET_SOURCE_LABELS[value] }))
 
@@ -612,6 +621,12 @@ function handleFollow() {
   if (!target) return
   mapStore.setFollow(mapStore.followId === target.id ? null : target.id)
   mapStore.focusTarget(target)
+}
+
+function toggleFollow() {
+  const target = detail.value
+  if (!target) return
+  targetsStore.toggleFollow(target.id)
 }
 
 function handleShowTrajectory() {
