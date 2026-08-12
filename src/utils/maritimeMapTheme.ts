@@ -21,9 +21,9 @@ export const SOURCE_COLORS: Record<TargetSource, string> = {
 }
 
 export const TARGET_MARKER_SIZE: Record<MarkerSize, number> = {
-  small: 20,
-  medium: 24,
-  large: 28,
+  small: 32,
+  medium: 38,
+  large: 44,
 }
 
 export const MARKER_RADIUS: Record<MarkerSize, number> = {

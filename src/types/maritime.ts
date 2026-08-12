@@ -116,6 +116,8 @@ export interface AlarmEvent {
   targetId: string
   targetName: string
   targetMmsi: string
+  /** 电子围栏区域 ID，区域告警关联的警戒区。 */
+  zoneId?: string
   lon: number
   lat: number
   occurredAt: string

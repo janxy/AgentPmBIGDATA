@@ -23,11 +23,11 @@
     </div>
     <div v-if="mapStore.layers.vessels" class="maritime-map-legend" aria-label="船只标识">
       <span class="maritime-map-legend__item">
-        <img class="maritime-map-legend__icon" :src="normalMarker" alt="正常船舶" />
+        <img class="maritime-map-legend__icon maritime-map-legend__icon--ship" :src="normalMarker" alt="正常船舶" />
         <span>正常船舶</span>
       </span>
       <span class="maritime-map-legend__item">
-        <img class="maritime-map-legend__icon" :src="sanwuMarker" alt="三无船舶" />
+        <img class="maritime-map-legend__icon maritime-map-legend__icon--ship" :src="sanwuMarker" alt="三无船舶" />
         <span>三无船舶</span>
       </span>
       <span class="maritime-map-legend__item">
@@ -216,6 +216,11 @@ const tooltipStyle = computed(() => ({
   width: 15px;
   height: 15px;
   flex-shrink: 0;
+}
+
+.maritime-map-legend__icon--ship {
+  width: 22px;
+  height: 22px;
 }
 
 .maritime-map-legend__follow {

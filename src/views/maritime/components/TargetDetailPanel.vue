@@ -20,6 +20,9 @@
             <span>{{ isFollowed ? '取消关注' : '关注' }}</span>
           </button>
         </h3>
+        <div class="td-target-photo">
+          <img class="td-target-photo__img" :src="targetPhoto" :alt="targetPhotoAlt" />
+        </div>
         <dl class="td-grid">
           <div class="td-field">
             <dt>船名</dt>
@@ -50,6 +53,11 @@
             <dd>{{ draftText }}</dd>
           </div>
         </dl>
+      </section>
+
+      <section class="td-section">
+        <h3><el-icon><Connection /></el-icon>轨迹来源</h3>
+        <div class="td-trajectory-source" aria-hidden="true"></div>
       </section>
 
       <section class="td-section">
@@ -86,22 +94,45 @@
       </section>
 
       <section class="td-section">
-        <h3><el-icon><Connection /></el-icon>来源融合</h3>
-        <div class="td-sources">
-          <div v-for="option in sourceOptions" :key="option.value" class="td-source">
-            <span class="td-source__name">{{ option.label }}</span>
-            <span v-if="!latestReports[option.value]" class="td-source__empty">无上报</span>
-            <template v-else>
-              <span class="td-source__quality" :class="`is-${latestReports[option.value]!.quality}`">
-                {{ DATA_QUALITY_LABELS[latestReports[option.value]!.quality] }}
-              </span>
-              <span class="td-source__time">{{ formatTime(latestReports[option.value]!.reportTime) }}</span>
-              <span v-if="isStale(latestReports[option.value]!.reportTime)" class="td-source__stale">超时</span>
-            </template>
-          </div>
+        <h3><el-icon><Operation /></el-icon>快捷操作</h3>
+        <div class="td-actions">
+          <button type="button" class="td-action" @click="handleLocate">
+            <el-icon><Aim /></el-icon>
+            <span>定位</span>
+          </button>
+          <button
+            type="button"
+            class="td-action"
+            :class="{ 'is-active': tracking }"
+            @click="handleFollow"
+          >
+            <el-icon><Guide /></el-icon>
+            <span>{{ tracking ? '跟随中' : '跟随' }}</span>
+          </button>
+          <button type="button" class="td-action" @click="handleShowTrajectory">
+            <el-icon><TrendCharts /></el-icon>
+            <span>查看轨迹</span>
+          </button>
+          <button type="button" class="td-action td-action--alarm" @click="handleDispose">
+            <el-icon><Bell /></el-icon>
+            <span>告警处置</span>
+          </button>
         </div>
-        <div v-if="detail.sources.length === 0" class="td-tip td-tip--warn">
-          该目标暂无有效来源上报，仅保留基本占位信息
+        <div ref="alarmListRef" class="td-alarms">
+          <div v-if="pendingAlarms.length === 0" class="td-alarms__empty">该目标暂无关联告警</div>
+          <button
+            v-for="alarm in pendingAlarms"
+            :key="alarm.id"
+            type="button"
+            class="td-alarm"
+            @click="handleAlarmClick(alarm)"
+          >
+            <span class="td-alarm__level" :class="`is-${alarm.level}`">
+              {{ ALARM_LEVEL_LABELS[alarm.level] }}
+            </span>
+            <span class="td-alarm__type">{{ ALARM_TYPE_LABELS[alarm.type] }}</span>
+            <span class="td-alarm__time">{{ formatTime(alarm.occurredAt) }}</span>
+          </button>
         </div>
       </section>
 
@@ -156,45 +187,22 @@
       </section>
 
       <section class="td-section">
-        <h3><el-icon><Operation /></el-icon>快捷操作</h3>
-        <div class="td-actions">
-          <button type="button" class="td-action" @click="handleLocate">
-            <el-icon><Aim /></el-icon>
-            <span>定位</span>
-          </button>
-          <button
-            type="button"
-            class="td-action"
-            :class="{ 'is-active': tracking }"
-            @click="handleFollow"
-          >
-            <el-icon><Guide /></el-icon>
-            <span>{{ tracking ? '跟随中' : '跟随' }}</span>
-          </button>
-          <button type="button" class="td-action" @click="handleShowTrajectory">
-            <el-icon><TrendCharts /></el-icon>
-            <span>查看轨迹</span>
-          </button>
-          <button type="button" class="td-action td-action--alarm" @click="handleDispose">
-            <el-icon><Bell /></el-icon>
-            <span>告警处置</span>
-          </button>
+        <h3><el-icon><Connection /></el-icon>来源融合</h3>
+        <div class="td-sources">
+          <div v-for="option in sourceOptions" :key="option.value" class="td-source">
+            <span class="td-source__name">{{ option.label }}</span>
+            <span v-if="!latestReports[option.value]" class="td-source__empty">无上报</span>
+            <template v-else>
+              <span class="td-source__quality" :class="`is-${latestReports[option.value]!.quality}`">
+                {{ DATA_QUALITY_LABELS[latestReports[option.value]!.quality] }}
+              </span>
+              <span class="td-source__time">{{ formatTime(latestReports[option.value]!.reportTime) }}</span>
+              <span v-if="isStale(latestReports[option.value]!.reportTime)" class="td-source__stale">超时</span>
+            </template>
+          </div>
         </div>
-        <div ref="alarmListRef" class="td-alarms">
-          <div v-if="pendingAlarms.length === 0" class="td-alarms__empty">该目标暂无关联告警</div>
-          <button
-            v-for="alarm in pendingAlarms"
-            :key="alarm.id"
-            type="button"
-            class="td-alarm"
-            @click="handleAlarmClick(alarm)"
-          >
-            <span class="td-alarm__level" :class="`is-${alarm.level}`">
-              {{ ALARM_LEVEL_LABELS[alarm.level] }}
-            </span>
-            <span class="td-alarm__type">{{ ALARM_TYPE_LABELS[alarm.type] }}</span>
-            <span class="td-alarm__time">{{ formatTime(alarm.occurredAt) }}</span>
-          </button>
+        <div v-if="detail.sources.length === 0" class="td-tip td-tip--warn">
+          该目标暂无有效来源上报，仅保留基本占位信息
         </div>
       </section>
     </div>
@@ -361,13 +369,41 @@
           </div>
           <div class="td-field">
             <dt>关联告警</dt>
-            <dd>{{ zoneDetail.alarmCount }} 条</dd>
+            <dd>{{ zoneAlarms.length }} 条</dd>
           </div>
           <div class="td-field">
             <dt>更新时间</dt>
             <dd>{{ formatTime(zoneDetail.lastUpdate) }}</dd>
           </div>
         </dl>
+      </section>
+
+      <section class="td-section">
+        <h3><el-icon><Bell /></el-icon>历史告警</h3>
+        <div class="td-alarms">
+          <div v-if="zoneAlarms.length === 0" class="td-alarms__empty">该区域暂无历史告警</div>
+          <button
+            v-for="alarm in zoneAlarms"
+            :key="alarm.id"
+            type="button"
+            class="td-alarm td-alarm--fence"
+            @click="handleAlarmClick(alarm)"
+          >
+            <span class="td-alarm__level" :class="`is-${alarm.level}`">
+              {{ ALARM_LEVEL_LABELS[alarm.level] }}
+            </span>
+            <span class="td-alarm__body">
+              <span class="td-alarm__title">{{ alarm.targetName }}</span>
+              <span class="td-alarm__desc">{{ alarm.description }}</span>
+            </span>
+            <span class="td-alarm__aside">
+              <span class="td-alarm__status" :class="`is-${alarm.status}`">
+                {{ DISPOSE_STATUS_LABELS[alarm.status] }}
+              </span>
+              <span class="td-alarm__time">{{ formatTime(alarm.occurredAt) }}</span>
+            </span>
+          </button>
+        </div>
       </section>
 
       <section class="td-section">
@@ -416,10 +452,13 @@ import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeAlarmsStore } from '@/stores/maritimeAlarms'
 import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
 import { RADAR_STATIONS } from '@/utils/maritimeGeography'
+import normalMarker from '@/assets/maritime/marker-normal.svg'
+import sanwuMarker from '@/assets/maritime/marker-sanwu.svg'
 import {
   ALARM_LEVEL_LABELS,
   ALARM_TYPE_LABELS,
   DATA_QUALITY_LABELS,
+  DISPOSE_STATUS_LABELS,
   TARGET_SOURCE_LABELS,
   TARGET_SOURCE_OPTIONS,
   TARGET_STATUS_LABELS,
@@ -443,6 +482,8 @@ const alarmListRef = ref<HTMLElement | null>(null)
 const emphasizeTrajectory = ref(false)
 
 const detail = computed(() => targetsStore.detail)
+const targetPhoto = computed(() => (detail.value?.type === 'sanwu' ? sanwuMarker : normalMarker))
+const targetPhotoAlt = computed(() => (detail.value?.type === 'sanwu' ? '三无船舶外观' : '正常船舶外观'))
 const radarDetail = computed(() =>
   mapStore.selectedCategory === 'radar'
     ? RADAR_STATIONS.find((item) => item.id === mapStore.selectedCategoryId) ?? null
@@ -497,6 +538,14 @@ const latestReports = computed<Record<TargetSource, SourceReport | undefined>>((
 const pendingAlarms = computed(() =>
   alarmsStore.alarms.filter((a) => a.targetId === detail.value?.id && a.status === 'pending'),
 )
+
+const zoneAlarms = computed(() => {
+  const zone = zoneDetail.value
+  if (!zone) return []
+  return alarmsStore.alarms
+    .filter((alarm) => alarm.zoneId === zone.id)
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+})
 
 const sizeText = computed(() => {
   const target = detail.value

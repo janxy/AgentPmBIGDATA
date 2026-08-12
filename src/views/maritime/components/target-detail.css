@@ -127,6 +127,26 @@
   font-size: 13px;
 }
 
+.td-target-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(0deg, rgba(64, 157, 255, 0.06) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(90deg, rgba(64, 157, 255, 0.06) 0 1px, transparent 1px 28px);
+  border: 1px solid var(--mar-line-soft);
+  border-radius: 4px;
+}
+
+.td-target-photo__img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
 .td-camera-feed {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -354,6 +374,14 @@
   border-radius: 4px;
 }
 
+.td-trajectory-source {
+  box-sizing: border-box;
+  height: 50px;
+  background: rgba(18, 44, 74, 0.35);
+  border: 1px dashed rgba(124, 156, 255, 0.38);
+  border-radius: 4px;
+}
+
 .td-trajectory-line {
   fill: none;
   stroke: var(--mar-accent);
@@ -509,4 +537,62 @@
   color: var(--mar-text-faint);
   font-size: 10px;
   white-space: nowrap;
+}
+
+.td-alarm--fence {
+  align-items: flex-start;
+}
+
+.td-alarm--fence .td-alarm__body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.td-alarm--fence .td-alarm__title {
+  color: var(--mar-text);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.td-alarm--fence .td-alarm__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--mar-text-faint);
+  font-size: 10px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.td-alarm--fence .td-alarm__aside {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.td-alarm--fence .td-alarm__status {
+  color: var(--mar-text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.td-alarm--fence .td-alarm__status.is-pending {
+  color: var(--mar-red);
+}
+
+.td-alarm--fence .td-alarm__status.is-processing {
+  color: var(--mar-amber);
+}
+
+.td-alarm--fence .td-alarm__status.is-done {
+  color: var(--mar-accent);
+}
+
+.td-alarm--fence .td-alarm__time {
+  margin-left: 0;
 }

@@ -675,8 +675,11 @@ export function drawTarget(ctx: CanvasRenderingContext2D, context: MapLayerConte
   if (marker) {
     ctx.save()
     ctx.translate(point.x, point.y)
-    ctx.rotate(((target.course - 180) * Math.PI) / 180)
-    ctx.drawImage(marker, -markerSize / 2, -markerSize, markerSize, markerSize)
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    // 船标 SVG 为方形构图且船头朝上，以船体中心为锚点绘制。
+    ctx.rotate((target.course * Math.PI) / 180)
+    ctx.drawImage(marker, -markerSize / 2, -markerSize / 2, markerSize, markerSize)
     ctx.restore()
     return
   }

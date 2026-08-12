@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import { useMaritimeMapViewStore } from '@/stores/maritimeMapView'
 import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
-import { ALARM_LEVEL_LABELS, JURISDICTION_BOUNDS, TARGET_SOURCE_LABELS, TARGET_STATUS_LABELS } from '@/types/maritime'
+import { JURISDICTION_BOUNDS, TARGET_SOURCE_LABELS, TARGET_STATUS_LABELS } from '@/types/maritime'
 import type { EoDevice, FenceZone, FusionTarget, LatLng, TrackPoint } from '@/types/maritime'
 import { EO_DEVICES, FENCE_ZONES } from '@/mock/maritime/monitor'
 import { RADAR_STATIONS } from '@/utils/maritimeGeography'
@@ -37,11 +37,11 @@ const BOUNDS = JURISDICTION_BOUNDS
 const LON_SPAN = BOUNDS.maxLon - BOUNDS.minLon
 const LAT_SPAN = BOUNDS.maxLat - BOUNDS.minLat
 const MIN_ZOOM = 1
-const MAX_ZOOM = 6
+const MAX_ZOOM = 24
 const TILE_SIZE = 256
 const MAX_TILE_CACHE = 64
 const MIN_TILE_ZOOM = 3
-const MAX_TILE_ZOOM = 10
+const MAX_TILE_ZOOM = 18
 const MERCATOR_LAT_LIMIT = 85.05112878
 // 天地图卫星底图浏览器端测试 key，正式部署时请替换为项目自己的 key。
 const TILE_TOKEN = '55b4d4eaef95384c946e9bd1b99c5610'
@@ -266,7 +266,7 @@ function drawTileBackground(runtime: MapRuntime, ctx: CanvasRenderingContext2D) 
     const c = (pBL.x - pTL.x) / TILE_SIZE
     const d = (pBL.y - pTL.y) / TILE_SIZE
     ctx.save()
-    ctx.setTransform(a, b, c, d, pTL.x, pTL.y)
+    ctx.transform(a, b, c, d, pTL.x, pTL.y)
     ctx.drawImage(img, 0, 0)
     ctx.restore()
   }
@@ -278,7 +278,7 @@ function updateMapSize(runtime: MapRuntime) {
   const rect = canvas.getBoundingClientRect()
   runtime.width = Math.max(1, Math.round(rect.width))
   runtime.height = Math.max(1, Math.round(rect.height))
-  runtime.dpr = 1
+  runtime.dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
   canvas.width = Math.round(runtime.width * runtime.dpr)
   canvas.height = Math.round(runtime.height * runtime.dpr)
 }
@@ -556,18 +556,9 @@ function updateMapHover(runtime: MapRuntime, x: number, y: number) {
     return
   }
   if (item.kind === 'zone') {
-    const zone = item.zone
-    runtime.hoverInfo.value = {
-      title: zone.name,
-      rows: [
-        `编号 ${zone.id}`,
-        `告警等级 ${ALARM_LEVEL_LABELS[zone.alarmLevel]}`,
-        `面积 ${zone.areaKm2} km² · ${zone.enabled ? '启用' : '停用'}`,
-        `关联告警 ${zone.alarmCount} 条`,
-      ],
-      x,
-      y,
-    }
+    // 区域不弹 hover 提示，点击后在右侧详情中查看区域与历史告警。
+    runtime.hoverInfo.value = null
+    return
   }
 }
 

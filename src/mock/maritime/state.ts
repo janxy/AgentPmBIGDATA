@@ -22,6 +22,7 @@ import type {
 } from '@/types/maritime'
 import { JURISDICTION_BOUNDS } from '@/types/maritime'
 import { distanceMeters } from '@/utils/geo'
+import { FENCE_ZONES } from '@/mock/maritime/monitor'
 import rawChuanTargets from './chuan.json'
 
 const TRACK_PER_TARGET = 20
@@ -268,6 +269,10 @@ function generateTracks() {
 function createAlarm(minutesAgo = 0): AlarmEvent {
   const target = pick(targets)
   const type = pick(ALARM_TYPES)
+  const zone = type === 'zone' ? pick(FENCE_ZONES) : null
+  const angle = rng() * Math.PI * 2
+  const distanceKm = zone ? Math.sqrt(rng()) * zone.radiusKm * 0.85 : 0
+  const cosLat = Math.cos(((zone?.lat ?? target.lat) * Math.PI) / 180)
   return {
     id: makeId('A', ++sim.alarmSeq),
     type,
@@ -275,11 +280,12 @@ function createAlarm(minutesAgo = 0): AlarmEvent {
     targetId: target.id,
     targetName: target.name,
     targetMmsi: target.mmsi,
-    lon: target.lon,
-    lat: target.lat,
+    ...(zone ? { zoneId: zone.id } : {}),
+    lon: zone ? zone.lon + (Math.sin(angle) * distanceKm) / (111.32 * cosLat) : target.lon,
+    lat: zone ? zone.lat + (Math.cos(angle) * distanceKm) / 111.32 : target.lat,
     occurredAt: isoMinutesAgo(minutesAgo),
     status: weighted(DISPOSE_WEIGHTS),
-    description: `${target.name}${ALARM_DESCRIPTIONS[type]}`,
+    description: zone ? `${target.name}进入${zone.name}敏感水域，请重点关注` : `${target.name}${ALARM_DESCRIPTIONS[type]}`,
   }
 }
 
