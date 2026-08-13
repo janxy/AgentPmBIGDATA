@@ -556,7 +556,7 @@ function drawTrackArrow(ctx: CanvasRenderingContext2D, from: { x: number; y: num
   const length = Math.hypot(dx, dy)
   if (length < 8) return
   const angle = Math.atan2(dy, dx)
-  const headLength = Math.min(9, length * 0.38)
+  const headLength = Math.min(8, length * 0.36)
   ctx.save()
   ctx.translate(from.x + dx * 0.5, from.y + dy * 0.5)
   ctx.rotate(angle)
@@ -570,7 +570,7 @@ function drawTrackArrow(ctx: CanvasRenderingContext2D, from: { x: number; y: num
   ctx.restore()
 }
 
-/** 绘制选中目标的最近航迹：细线连接至当前船位，每段画航行箭头并标注点时间。 */
+/** 绘制选中目标的最近航迹：虚线连接至当前船位，每段画航行箭头并标注点时间。 */
 export function drawTargetTrack(ctx: CanvasRenderingContext2D, context: MapLayerContext) {
   const selectedId = context.selectedId
   const track = context.selectedTrack
@@ -588,15 +588,29 @@ export function drawTargetTrack(ctx: CanvasRenderingContext2D, context: MapLayer
   ctx.save()
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
+
+  // 底光：半透明实线兜底，保证虚线在复杂底图上仍然清晰。
   ctx.strokeStyle = TRACK_LINE_COLOR
-  ctx.globalAlpha = 0.85
-  ctx.lineWidth = 1.4
+  ctx.globalAlpha = 0.12
+  ctx.lineWidth = 3.2
   ctx.beginPath()
   points.forEach((point, index) => {
     if (index === 0) ctx.moveTo(point.x, point.y)
     else ctx.lineTo(point.x, point.y)
   })
   ctx.stroke()
+
+  // 主轨迹：虚线区分历史航迹与实时船位。
+  ctx.globalAlpha = 0.88
+  ctx.lineWidth = 1.1
+  ctx.setLineDash([4, 3])
+  ctx.beginPath()
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y)
+    else ctx.lineTo(point.x, point.y)
+  })
+  ctx.stroke()
+  ctx.setLineDash([])
 
   ctx.globalAlpha = 1
   for (let index = 0; index < points.length - 1; index += 1) {
