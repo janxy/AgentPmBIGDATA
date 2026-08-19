@@ -11,9 +11,11 @@ import type {
   DispatchTimelineType,
   EnforcementVessel,
   EnforcementVesselStatus,
+  FrameCodeInfo,
   FusionTarget,
   MaritimeStats,
   MaritimeStatus,
+  PhoneSignalRelation,
   SourceReport,
   TargetSource,
   TargetStatus,
@@ -120,6 +122,10 @@ const ALARM_DESCRIPTIONS: Record<AlarmType, string> = {
   zone: '进入敏感区域，请重点关注',
 }
 
+const FRAME_SIGNAL_PREFIXES = ['4772', '4gry', '497j', 'kmq1', 'p2oj', 'p8vj', 'py7z', 'pnw5']
+const FRAME_RELATION_TYPES = ['同一时刻邻近轨迹', '邻域轨迹关联', '同航迹手机信号']
+const FRAME_CONFIDENCE_LEVELS = ['参考 20%', '参考 35%', '参考 50%', '参考 70%']
+
 const VESSEL_DEFS: Array<{ name: string; model: string; speed: number }> = [
   { name: '厦门海巡01', model: '中型执法船', speed: 26 },
   { name: '厦门海巡03', model: '近海巡逻艇', speed: 30 },
@@ -137,7 +143,14 @@ const trackPoints: TrackPoint[] = []
 const alarms: AlarmEvent[] = []
 const vessels: EnforcementVessel[] = []
 const dispatchOrders: DispatchOrder[] = []
+const historicalSnapshots = new Map<string, HistoricalSnapshot>()
 const sim = globalSimulatorState()
+
+interface HistoricalSnapshot {
+  targets: FusionTarget[]
+  sourceReports: SourceReport[]
+  trackPoints: TrackPoint[]
+}
 
 /** 可复现的伪随机数生成器，保证演示数据分布稳定。 */
 function mulberry32(seed: number) {
@@ -161,6 +174,7 @@ const nowIso = () => new Date().toISOString()
 const isoMinutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
 const makeId = (prefix: string, n: number) => `${prefix}-${String(n).padStart(4, '0')}`
 const normalizeCourse = (course: number) => ((course % 360) + 360) % 360
+let historySeq = 0
 
 function beijingTimeToIso(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(value)
@@ -715,6 +729,189 @@ export function subscribeMaritimeUpdates(cb: () => void): () => void {
     sim.listeners.delete(cb)
     if (sim.listeners.size === 0) stopSimulator()
   }
+}
+
+/** 历史快照：按日期生成稳定的船只、来源与轨迹，供历史模式地图与详情使用。 */
+function historyTimestamp(date: string) {
+  return new Date(`${date}T12:00:00+08:00`).toISOString()
+}
+
+function hashString(value: string) {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function frameSignalId(roll: () => number) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let value = FRAME_SIGNAL_PREFIXES[Math.floor(roll() * FRAME_SIGNAL_PREFIXES.length)]
+  for (let i = 0; i < 11; i += 1) {
+    value += chars[Math.floor(roll() * chars.length)]
+  }
+  return value
+}
+
+/** 按目标与日期生成稳定的帧码信息，供目标详情面板展示。 */
+export function buildFrameCodeInfo(target: FusionTarget, seedKey = ''): FrameCodeInfo {
+  const roll = mulberry32(hashString(`${target.id}:frame:${seedKey || 'live'}`))
+  const rand = (min: number, max: number) => min + roll() * (max - min)
+  const baseTime = new Date(target.lastUpdate).getTime()
+  const signalCount = 1 + Math.floor(roll() * 3)
+  const phoneSignals: PhoneSignalRelation[] = Array.from({ length: signalCount }, (_, index) => {
+    const signalAt = baseTime - Math.floor(rand(40, 140)) * 1000 - index * 45000
+    const serverAt = signalAt + Math.floor(rand(15, 45)) * 1000
+    const validAt = signalAt + Math.floor(rand(60, 120)) * 1000
+    const distance = Number(rand(380, 860).toFixed(1))
+    return {
+      signalId: frameSignalId(roll),
+      distanceMeters: distance,
+      matchDistanceMeters: Number(Math.max(0, distance + rand(-24, 24)).toFixed(1)),
+      confidence: FRAME_CONFIDENCE_LEVELS[Math.floor(roll() * FRAME_CONFIDENCE_LEVELS.length)],
+      relationType: FRAME_RELATION_TYPES[Math.floor(roll() * FRAME_RELATION_TYPES.length)],
+      signalTime: new Date(signalAt).toISOString(),
+      serverTime: new Date(serverAt).toISOString(),
+      validUntil: new Date(validAt).toISOString(),
+      lon: clamp(target.lon + rand(-0.006, 0.006), BOUNDS.minLon, BOUNDS.maxLon),
+      lat: clamp(target.lat + rand(-0.006, 0.006), BOUNDS.minLat, BOUNDS.maxLat),
+    }
+  })
+  return {
+    fusionName: target.name,
+    entityId: `NO_MMSI:SRC:${hashString(`${target.id}:entity`).toString(16).padStart(12, '0').slice(-12)}`,
+    recentRelationCount: 3,
+    trackPointCount: 1,
+    phoneSignalCount: signalCount,
+    speed: target.speed,
+    mmsi: target.mmsi || '未识别',
+    course: normalizeCourse(target.course),
+    lon: target.lon,
+    lat: target.lat,
+    lastSeenAt: target.lastUpdate,
+    phoneSignals,
+  }
+}
+
+function buildHistoricalTargets(targetTimeIso: string): FusionTarget[] {
+  return CHUAN_TARGETS.map((raw, index) => {
+    const target = buildChuanTarget(raw, index)
+    const roll = mulberry32(hashString(`${target.id}:${targetTimeIso}`))
+    const jitter = (min: number, max: number) => min + roll() * (max - min)
+    const baseTime = new Date(target.lastUpdate).getTime()
+    const deltaMinutes = (new Date(targetTimeIso).getTime() - baseTime) / 60000
+    const step = target.speed * KNOT_DEG_PER_MIN * deltaMinutes
+    const rad = (target.course * Math.PI) / 180
+    const cosLat = Math.cos((target.lat * Math.PI) / 180)
+    target.lon = clamp(
+      target.lon + (step * Math.sin(rad)) / cosLat + jitter(-TRACK_JITTER * 6, TRACK_JITTER * 6),
+      BOUNDS.minLon,
+      BOUNDS.maxLon,
+    )
+    target.lat = clamp(
+      target.lat + step * Math.cos(rad) + jitter(-TRACK_JITTER * 6, TRACK_JITTER * 6),
+      BOUNDS.minLat,
+      BOUNDS.maxLat,
+    )
+    target.course = normalizeCourse(target.course + jitter(-12, 12))
+    target.speed = Number(Math.max(0, target.speed + jitter(-1.5, 1.5)).toFixed(1))
+    const statusRoll = roll()
+    target.status = statusRoll < 0.06 ? 'offline' : statusRoll < 0.11 ? 'abnormal' : 'online'
+    target.lastUpdate = targetTimeIso
+    target.lastPositionTime = targetTimeIso
+    return target
+  })
+}
+
+function buildHistoricalSourceReports(targets: FusionTarget[], targetTimeIso: string): SourceReport[] {
+  const reports: SourceReport[] = []
+  for (const target of targets) {
+    for (const source of target.sources) {
+      reports.push({
+        id: makeId('H', ++historySeq),
+        targetId: target.id,
+        source,
+        reportTime: targetTimeIso,
+        quality: weighted(QUALITY_WEIGHTS),
+        lon: target.lon,
+        lat: target.lat,
+        speed: target.speed,
+        course: target.course,
+      })
+    }
+  }
+  return reports
+}
+
+function buildHistoricalTracks(targets: FusionTarget[], targetTimeIso: string): TrackPoint[] {
+  const points: TrackPoint[] = []
+  for (const target of targets) {
+    const roll = mulberry32(hashString(`TRACK:${target.id}:${targetTimeIso}`))
+    const jitter = (min: number, max: number) => min + roll() * (max - min)
+    const rad = (target.course * Math.PI) / 180
+    const cosLat = Math.cos((target.lat * Math.PI) / 180)
+    const isoMinutesBefore = (minutes: number) =>
+      new Date(new Date(targetTimeIso).getTime() - minutes * 60000).toISOString()
+    for (let i = TRACK_PER_TARGET; i >= 1; i -= 1) {
+      const minutesAgo = i * TRACK_INTERVAL_MIN
+      const step = target.speed * KNOT_DEG_PER_MIN * minutesAgo
+      points.push({
+        id: makeId('H', ++historySeq),
+        targetId: target.id,
+        time: isoMinutesBefore(minutesAgo),
+        lon: clamp(
+          target.lon - (step * Math.sin(rad)) / cosLat + jitter(-TRACK_JITTER, TRACK_JITTER),
+          BOUNDS.minLon,
+          BOUNDS.maxLon,
+        ),
+        lat: clamp(
+          target.lat - step * Math.cos(rad) + jitter(-TRACK_JITTER, TRACK_JITTER),
+          BOUNDS.minLat,
+          BOUNDS.maxLat,
+        ),
+        speed: Number(Math.max(0, target.speed + jitter(-2, 2)).toFixed(1)),
+        course: normalizeCourse(target.course + jitter(-8, 8)),
+      })
+    }
+    points.push({
+      id: makeId('H', ++historySeq),
+      targetId: target.id,
+      time: targetTimeIso,
+      lon: target.lon,
+      lat: target.lat,
+      speed: target.speed,
+      course: target.course,
+    })
+  }
+  return points
+}
+
+function getHistoricalSnapshot(date: string): HistoricalSnapshot {
+  const snapshotDate = date.length >= 10 ? date.slice(0, 10) : date
+  const cached = historicalSnapshots.get(snapshotDate)
+  if (cached) return cached
+  const targetTime = historyTimestamp(snapshotDate)
+  const targets = buildHistoricalTargets(targetTime)
+  const snapshot: HistoricalSnapshot = {
+    targets,
+    sourceReports: buildHistoricalSourceReports(targets, targetTime),
+    trackPoints: buildHistoricalTracks(targets, targetTime),
+  }
+  historicalSnapshots.set(snapshotDate, snapshot)
+  return snapshot
+}
+
+export function getHistoricalTargets(date: string) {
+  return getHistoricalSnapshot(date).targets
+}
+
+export function getHistoricalSourceReports(date: string) {
+  return getHistoricalSnapshot(date).sourceReports
+}
+
+export function getHistoricalTrackPoints(date: string) {
+  return getHistoricalSnapshot(date).trackPoints
 }
 
 if (import.meta.hot) {

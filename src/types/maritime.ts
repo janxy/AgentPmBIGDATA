@@ -102,6 +102,36 @@ export interface TrackPoint {
   course: number
 }
 
+/** 与融合目标关联的船上手机信号记录。 */
+export interface PhoneSignalRelation {
+  signalId: string
+  distanceMeters: number
+  matchDistanceMeters: number
+  confidence: string
+  relationType: string
+  signalTime: string
+  serverTime: string
+  validUntil: string
+  lon: number
+  lat: number
+}
+
+/** 帧码维度目标信息：基础属性与关联手机信号列表。 */
+export interface FrameCodeInfo {
+  fusionName: string
+  entityId: string
+  recentRelationCount: number
+  trackPointCount: number
+  phoneSignalCount: number
+  speed: number
+  mmsi: string
+  course: number
+  lon: number
+  lat: number
+  lastSeenAt: string
+  phoneSignals: PhoneSignalRelation[]
+}
+
 /** 单个目标最近轨迹线段，供海图轨迹图层批量渲染。 */
 export interface TargetTrackLine {
   targetId: string

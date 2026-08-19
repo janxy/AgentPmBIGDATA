@@ -3,13 +3,16 @@ import { defineStore } from 'pinia'
 import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import {
+  fetchHistoricalTargets,
   fetchMaritimeOverview,
   fetchTargetDetail,
+  fetchTargetFrameCode,
   fetchTargetSources,
   fetchTargetTrack,
   fetchTargets,
 } from '@/api/maritime'
 import type {
+  FrameCodeInfo,
   FusionTarget,
   MaritimeStats,
   SourceReport,
@@ -31,6 +34,12 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
     refreshing: false,
     lastUpdated: '',
     errorMessage: '',
+    historyMode: false,
+    historyDate: '',
+    historyTargets: [] as FusionTarget[],
+    historyTypes: [] as TargetType[],
+    historyLoading: false,
+    historyError: '',
     filter: {
       sources: [] as TargetSource[],
       statuses: [] as TargetStatus[],
@@ -41,6 +50,7 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
     pageSize: 10,
     selectedId: null as string | null,
     detail: null as FusionTarget | null,
+    frameCode: null as FrameCodeInfo | null,
     sources: [] as SourceReport[],
     track: [] as TrackPoint[],
     detailLoading: false,
@@ -50,11 +60,15 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
   }),
 
   getters: {
+    mapTargets(state) {
+      return state.historyMode ? state.historyTargets : state.targets
+    },
     filteredTargets(state) {
+      const base = state.historyMode ? state.historyTargets : state.targets
       const { sources: sourceFilter, statuses, types, keyword } = state.filter
       const kw = keyword.trim().toLowerCase()
       const followedIds = state.followedIds
-      return state.targets
+      return base
         .filter((t) => {
           if (kw && ![t.name, t.mmsi, t.id].some((v) => v.toLowerCase().includes(kw))) return false
           if (sourceFilter.length && !sourceFilter.some((s) => t.sources.includes(s))) return false
@@ -80,10 +94,11 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
       return this.filteredTargets.slice(start, start + this.pageSize)
     },
     sourceCounts(state) {
+      const list = state.historyMode ? state.historyTargets : state.targets
       return {
-        radar: state.targets.filter((t) => RADAR_SOURCE_OPTIONS.some((s) => t.sources.includes(s))).length,
-        ais: state.targets.filter((t) => t.sources.includes('ais')).length,
-        framecode: state.targets.filter((t) => t.sources.includes('framecode')).length,
+        radar: list.filter((t) => RADAR_SOURCE_OPTIONS.some((s) => t.sources.includes(s))).length,
+        ais: list.filter((t) => t.sources.includes('ais')).length,
+        framecode: list.filter((t) => t.sources.includes('framecode')).length,
       }
     },
     filteredAlarmCount(): number {
@@ -129,10 +144,10 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
         this.errorMessage = ''
         const selected = this.selectedId
         const fresh = selected ? this.targets.find((t) => t.id === selected) ?? null : null
-        if (selected && !fresh) {
+        if (selected && !this.historyMode && !fresh) {
           ElMessage.warning('目标已离线或已移除')
           this.clearSelection()
-        } else if (fresh && this.detail?.id === selected) {
+        } else if (!this.historyMode && fresh && this.detail?.id === selected) {
           this.detail = { ...this.detail, ...fresh }
         }
         if (this.page > this.pageTotal) this.page = this.pageTotal
@@ -172,15 +187,19 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
       this.detailRequestSeq = seq
       this.sources = []
       this.track = []
+      this.frameCode = null
       this.detailLoading = true
+      const date = this.historyMode ? this.historyDate : undefined
       try {
-        const [target, sourceList, trackList] = await Promise.all([
-          fetchTargetDetail(id),
-          fetchTargetSources(id),
-          fetchTargetTrack(id, 60),
+        const [target, sourceList, trackList, frameCode] = await Promise.all([
+          fetchTargetDetail(id, date),
+          fetchTargetSources(id, date),
+          fetchTargetTrack(id, 60, date),
+          fetchTargetFrameCode(id, date),
         ])
         if (this.selectedId !== id || this.detailRequestSeq !== seq) return
         this.detail = target
+        this.frameCode = frameCode
         this.sources = sourceList
         this.track = trackList
       } catch {
@@ -193,7 +212,8 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
     },
 
     selectTarget(id: string) {
-      const target = this.targets.find((t) => t.id === id)
+      const list = this.historyMode ? this.historyTargets : this.targets
+      const target = list.find((t) => t.id === id)
       if (!target) {
         ElMessage.warning('目标已离线或已移除')
         this.clearSelection()
@@ -201,15 +221,59 @@ export const useMaritimeTargetsStore = defineStore('maritimeTargets', {
       }
       this.selectedId = id
       this.detail = target
+      this.frameCode = null
       this.sources = []
       this.track = []
       useMaritimeUiStore().openDetail()
       void this.loadDetail(id)
     },
 
+    async enterHistory(date: string) {
+      const value = (date || '').trim()
+      if (!value) {
+        ElMessage.warning('请选择历史日期')
+        return
+      }
+      this.historyLoading = true
+      this.historyError = ''
+      try {
+        const result = await fetchHistoricalTargets({
+          date: value,
+          page: 1,
+          pageSize: 999,
+          types: this.historyTypes.length > 0 ? this.historyTypes : undefined,
+        })
+        this.historyTargets = result.items
+        this.historyDate = value
+        this.historyMode = true
+        this.filter = { sources: [], statuses: [], types: [], keyword: '' }
+        this.page = 1
+        this.clearSelection()
+        ElMessage.success(`已载入 ${value} 历史船只 ${result.items.length} 艘`)
+      } catch {
+        this.historyError = '历史数据加载失败，请检查日期后重试'
+        this.historyMode = false
+        this.historyTargets = []
+        ElMessage.error(this.historyError)
+      } finally {
+        this.historyLoading = false
+      }
+    },
+
+    exitHistory() {
+      this.historyMode = false
+      this.historyDate = ''
+      this.historyTargets = []
+      this.historyError = ''
+      this.historyLoading = false
+      this.clearSelection()
+      ElMessage.success('已退出历史模式，恢复实时船只数据')
+    },
+
     clearSelection() {
       this.selectedId = null
       this.detail = null
+      this.frameCode = null
       this.sources = []
       this.track = []
       this.detailLoading = false

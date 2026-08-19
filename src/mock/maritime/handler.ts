@@ -12,7 +12,9 @@ import {
   queryLawDispatchDetail,
   queryLawDispatchOrders,
   queryLawDispatchOverview,
+  queryHistoricalTargets,
   queryTargetDetail,
+  queryTargetFrameCode,
   queryTargetSources,
   queryTargetTracks,
   queryTargets,
@@ -101,10 +103,27 @@ export function handleMaritimeRequest(
           }),
         )
       }
-      if (path === '/api/maritime/target/detail') return ok(queryTargetDetail(first(params.id)))
-      if (path === '/api/maritime/target/sources') return ok(queryTargetSources(first(params.id)))
+      if (path === '/api/maritime/history/targets') {
+        return ok(
+          queryHistoricalTargets({
+            date: first(params.date),
+            page: toNumber(params.page, 1),
+            pageSize: toNumber(params.pageSize, 999),
+            types: toList<TargetType>(params.types),
+          }),
+        )
+      }
+      if (path === '/api/maritime/target/detail') {
+        return ok(queryTargetDetail(first(params.id), first(params.date) || undefined))
+      }
+      if (path === '/api/maritime/target/frame-code') {
+        return ok(queryTargetFrameCode(first(params.id), first(params.date) || undefined))
+      }
+      if (path === '/api/maritime/target/sources') {
+        return ok(queryTargetSources(first(params.id), first(params.date) || undefined))
+      }
       if (path === '/api/maritime/target/track') {
-        return ok(queryTargetTrack(first(params.id), toNumber(params.limit, 60)))
+        return ok(queryTargetTrack(first(params.id), toNumber(params.limit, 60), first(params.date) || undefined))
       }
       if (path === '/api/maritime/target/tracks') {
         return ok(queryTargetTracks(toNumber(params.limit, 20)))

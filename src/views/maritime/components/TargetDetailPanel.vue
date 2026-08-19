@@ -5,13 +5,32 @@
       <span v-if="selectedName" class="panel-head__meta">{{ selectedName }}</span>
     </header>
 
+    <nav v-if="detail" class="td-tabs" aria-label="详情视图">
+      <button
+        type="button"
+        class="td-tab"
+        :class="{ 'is-active': detailView === 'basic' }"
+        @click="detailView = 'basic'"
+      >
+        基本信息
+      </button>
+      <button
+        type="button"
+        class="td-tab"
+        :class="{ 'is-active': detailView === 'frame' }"
+        @click="detailView = 'frame'"
+      >
+        帧码信息
+      </button>
+    </nav>
+
     <div v-if="!hasSelection" class="panel-empty">
       <el-icon><Location /></el-icon>
       <p>未选中目标</p>
       <span>请在海图或目标监控中点击目标</span>
     </div>
 
-    <div v-else-if="detail" class="td-scroll">
+    <div v-else-if="detail && detailView === 'basic'" class="td-scroll">
       <section class="td-section">
         <h3>
           <el-icon><Document /></el-icon>基本信息
@@ -204,6 +223,119 @@
         <div v-if="detail.sources.length === 0" class="td-tip td-tip--warn">
           该目标暂无有效来源上报，仅保留基本占位信息
         </div>
+      </section>
+    </div>
+
+    <div v-else-if="detail && detailView === 'frame'" class="td-scroll">
+      <section class="td-section">
+        <h3><el-icon><Connection /></el-icon>帧码基础信息</h3>
+        <template v-if="frameInfo">
+          <dl class="td-grid td-grid--frame">
+            <div class="td-field td-field--span2">
+              <dt>融合船舶</dt>
+              <dd>{{ frameInfo.fusionName }}</dd>
+            </div>
+            <div class="td-field td-field--span2">
+              <dt>内部实体编号</dt>
+              <dd class="td-value-code">{{ frameInfo.entityId }}</dd>
+            </div>
+            <div class="td-field">
+              <dt>最近10分钟历史关系</dt>
+              <dd>{{ frameInfo.recentRelationCount }} 条</dd>
+            </div>
+            <div class="td-field">
+              <dt>历史轨迹点</dt>
+              <dd>{{ frameInfo.trackPointCount }} 个</dd>
+            </div>
+            <div class="td-field">
+              <dt>关联手机信号</dt>
+              <dd>{{ frameInfo.phoneSignalCount }} 个</dd>
+            </div>
+            <div class="td-field">
+              <dt>当前速度</dt>
+              <dd>{{ numberText(frameInfo.speed, ' kn') }}</dd>
+            </div>
+            <div class="td-field">
+              <dt>船舶识别号（MMSI）</dt>
+              <dd>{{ frameInfo.mmsi }}</dd>
+            </div>
+            <div class="td-field">
+              <dt>当前航向</dt>
+              <dd>{{ numberText(frameInfo.course, '°') }}</dd>
+            </div>
+            <div class="td-field td-field--span2">
+              <dt>当前位置</dt>
+              <dd>{{ framePositionText }}</dd>
+            </div>
+            <div class="td-field td-field--span2">
+              <dt>最后关联出现</dt>
+              <dd>{{ formatFullTime(frameInfo.lastSeenAt) }}</dd>
+            </div>
+          </dl>
+        </template>
+        <div v-else class="td-trajectory-empty">帧码数据加载中</div>
+      </section>
+
+      <section class="td-section">
+        <h3>
+          <el-icon><Cellphone /></el-icon>
+          船上手机信号
+          <span class="td-frame-count">{{ frameInfo?.phoneSignals.length ?? 0 }}</span>
+        </h3>
+        <template v-if="frameInfo">
+          <div v-if="frameInfo.phoneSignals.length === 0" class="td-trajectory-empty">暂无关联手机信号</div>
+          <div v-else class="td-signal-list">
+            <article v-for="signal in frameInfo.phoneSignals" :key="signal.signalId" class="td-signal-card">
+              <header class="td-signal-card__head">
+                <span class="td-signal-card__id">{{ signal.signalId }}</span>
+                <span class="td-signal-card__tag">历史记录</span>
+              </header>
+              <dl class="td-signal-card__grid">
+                <div class="td-signal-field">
+                  <dt>手机信号</dt>
+                  <dd>{{ numberText(signal.distanceMeters, ' m') }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>融合船舶</dt>
+                  <dd>{{ frameInfo.fusionName }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>匹配距离</dt>
+                  <dd>{{ numberText(signal.matchDistanceMeters, ' m') }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>可信程度</dt>
+                  <dd>{{ signal.confidence }}</dd>
+                </div>
+                <div class="td-signal-field td-signal-field--span2">
+                  <dt>关联方式</dt>
+                  <dd>{{ signal.relationType }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>信号出现</dt>
+                  <dd>{{ formatFullTime(signal.signalTime) }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>服务器接收</dt>
+                  <dd>{{ formatFullTime(signal.serverTime) }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>关系有效至</dt>
+                  <dd>{{ formatFullTime(signal.validUntil) }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>信号经度</dt>
+                  <dd>{{ signal.lon.toFixed(6) }}</dd>
+                </div>
+                <div class="td-signal-field">
+                  <dt>信号纬度</dt>
+                  <dd>{{ signal.lat.toFixed(6) }}</dd>
+                </div>
+              </dl>
+            </article>
+          </div>
+        </template>
+        <div v-else class="td-trajectory-empty">帧码数据加载中</div>
       </section>
     </div>
 
@@ -435,6 +567,7 @@ import 'element-plus/es/components/message/style/css'
 import {
   Aim,
   Bell,
+  Cellphone,
   Connection,
   Document,
   Guide,
@@ -482,6 +615,8 @@ const alarmListRef = ref<HTMLElement | null>(null)
 const emphasizeTrajectory = ref(false)
 
 const detail = computed(() => targetsStore.detail)
+const frameInfo = computed(() => targetsStore.frameCode)
+const detailView = ref<'basic' | 'frame'>('basic')
 const targetPhoto = computed(() => (detail.value?.type === 'sanwu' ? sanwuMarker : normalMarker))
 const targetPhotoAlt = computed(() => (detail.value?.type === 'sanwu' ? '三无船舶外观' : '正常船舶外观'))
 const radarDetail = computed(() =>
@@ -563,6 +698,12 @@ const positionText = computed(() => {
   const target = detail.value
   if (!target || !Number.isFinite(target.lon) || !Number.isFinite(target.lat)) return '暂无位置信息'
   return `${target.lon.toFixed(4)}°E  ${target.lat.toFixed(4)}°N`
+})
+
+const framePositionText = computed(() => {
+  const info = frameInfo.value
+  if (!info || !Number.isFinite(info.lon) || !Number.isFinite(info.lat)) return '暂无位置信息'
+  return `${info.lon.toFixed(6)}, ${info.lat.toFixed(6)}`
 })
 
 const hasPosition = computed(() => {
@@ -727,5 +868,13 @@ function formatTime(value: string) {
   if (Number.isNaN(date.getTime())) return '-'
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function formatFullTime(value: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 </script>

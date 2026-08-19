@@ -8,6 +8,7 @@ import type {
   DispatchOutcome,
   DispatchStatus,
   EnforcementVessel,
+  FrameCodeInfo,
   FusionTarget,
   LawDispatchRecommend,
   PageResult,
@@ -20,11 +21,15 @@ import type {
 } from '@/types/maritime'
 import { distanceMeters } from '@/utils/geo'
 import {
+  buildFrameCodeInfo,
   buildStats,
   createDispatchOrderRecord,
   currentTimeIso,
   getAlarms,
   getDispatchOrders,
+  getHistoricalSourceReports,
+  getHistoricalTargets,
+  getHistoricalTrackPoints,
   getLawVessels,
   getMaritimeStatus,
   getSourceReports,
@@ -44,6 +49,13 @@ export interface TargetQueryParams {
   statuses?: TargetStatus[]
   types?: TargetType[]
   keyword?: string
+}
+
+export interface HistoricalTargetQueryParams {
+  date?: string
+  page?: number
+  pageSize?: number
+  types?: TargetType[]
 }
 
 export interface AlarmQueryParams {
@@ -101,6 +113,17 @@ function pageResult<T>(items: T[], page: number, pageSize: number): PageResult<T
   }
 }
 
+function validateHistoryDate(date?: string): string {
+  const value = (date || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/.test(value)) {
+    throw new MockError('历史日期格式不正确，请使用 YYYY-MM-DD 或 YYYY-MM-DD HH:mm:ss', 400)
+  }
+  const iso = value.includes(' ') ? value.replace(' ', 'T') : `${value}T00:00:00`
+  const parsed = new Date(`${iso}+08:00`)
+  if (Number.isNaN(parsed.getTime())) throw new MockError('历史日期无效，请重新选择', 400)
+  return value
+}
+
 /** 分页查询融合目标，支持来源、状态、类型与关键词组合筛选。 */
 function queryTargets(query: TargetQueryParams = {}): PageResult<FusionTarget> {
   const page = query.page || 1
@@ -111,26 +134,46 @@ function queryTargets(query: TargetQueryParams = {}): PageResult<FusionTarget> {
   return pageResult(matched, page, pageSize)
 }
 
-/** 查询单个融合目标详情。 */
-function queryTargetDetail(id: string): FusionTarget {
-  const target = getTargets().find((t) => t.id === id)
+/** 查询单个融合目标详情，传入历史日期时返回该日期快照。 */
+function queryTargetDetail(id: string, date?: string): FusionTarget {
+  const list = date ? getHistoricalTargets(validateHistoryDate(date)) : getTargets()
+  const target = list.find((t) => t.id === id)
   if (!target) throw new MockError('目标不存在', 404)
   return target
 }
 
+/** 查询目标帧码维度信息，传入历史日期时按该日期快照生成。 */
+function queryTargetFrameCode(id: string, date?: string): FrameCodeInfo {
+  const list = date ? getHistoricalTargets(validateHistoryDate(date)) : getTargets()
+  const target = list.find((t) => t.id === id)
+  if (!target) throw new MockError('目标不存在', 404)
+  return buildFrameCodeInfo(target, date || '')
+}
+
 /** 查询目标最近各来源上报记录。 */
-function queryTargetSources(id: string): SourceReport[] {
-  return getSourceReports()
+function queryTargetSources(id: string, date?: string): SourceReport[] {
+  return (date ? getHistoricalSourceReports(validateHistoryDate(date)) : getSourceReports())
     .filter((s) => s.targetId === id)
     .sort((a, b) => b.reportTime.localeCompare(a.reportTime))
 }
 
 /** 查询目标最近轨迹点，按时间正序返回。 */
-function queryTargetTrack(id: string, limit = 60): TrackPoint[] {
-  return getTrackPoints()
+function queryTargetTrack(id: string, limit = 60, date?: string): TrackPoint[] {
+  return (date ? getHistoricalTrackPoints(validateHistoryDate(date)) : getTrackPoints())
     .filter((p) => p.targetId === id)
     .sort((a, b) => a.time.localeCompare(b.time))
     .slice(-limit)
+}
+
+/** 按日期查询历史船只快照，供历史模式地图展示。 */
+function queryHistoricalTargets(query: HistoricalTargetQueryParams = {}): PageResult<FusionTarget> {
+  const date = validateHistoryDate(query.date)
+  const page = query.page || 1
+  const pageSize = query.pageSize || 999
+  const matched = getHistoricalTargets(date).filter(
+    (target) => !query.types?.length || query.types.includes(target.type),
+  )
+  return pageResult(matched, page, pageSize)
 }
 
 /** 批量查询全部目标最近轨迹线段，供海图轨迹图层使用。 */
@@ -420,11 +463,13 @@ export {
   createSmartDispatch,
   finishDispatch,
   getMaritimeStatus,
+  queryHistoricalTargets,
   queryAlarms,
   queryLawDispatchDetail,
   queryLawDispatchOrders,
   queryLawDispatchOverview,
   queryTargetDetail,
+  queryTargetFrameCode,
   queryTargetSources,
   queryTargetTracks,
   queryTargets,

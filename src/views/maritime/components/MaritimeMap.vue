@@ -1,13 +1,13 @@
 <template>
   <div class="maritime-map-host">
     <canvas ref="canvasRef" class="maritime-map-canvas"></canvas>
-    <span class="maritime-map-host__label">海图态势</span>
     <div v-if="mapStore.layers.vessels === false" class="maritime-map-notice">
       船只图层已隐藏，统计与列表不受影响
     </div>
     <div v-if="!targetsStore.loaded && targetsStore.loading" class="maritime-map-notice">
       海图数据加载中
     </div>
+    <HistorySearchPanel />
     <div class="maritime-layer-switch" aria-label="图层开关">
       <button
         v-for="item in layerItems"
@@ -61,6 +61,7 @@ import { useMaritimeTargetsStore } from '@/stores/maritimeTargets'
 import type { LayerState } from '@/types/maritime'
 import normalMarker from '@/assets/maritime/marker-normal.svg'
 import sanwuMarker from '@/assets/maritime/marker-sanwu.svg'
+import HistorySearchPanel from './HistorySearchPanel.vue'
 
 interface LayerSwitchItem {
   key: keyof LayerState
@@ -109,19 +110,6 @@ const tooltipStyle = computed(() => ({
   height: 100%;
   touch-action: none;
   cursor: crosshair;
-}
-
-.maritime-map-host__label {
-  position: absolute;
-  top: 14px;
-  left: 16px;
-  padding: 4px 10px;
-  color: var(--mar-text-dim);
-  font-size: 12px;
-  letter-spacing: 1px;
-  background: rgba(4, 13, 25, 0.55);
-  border: 1px solid var(--mar-line-soft);
-  border-radius: 4px;
 }
 
 .maritime-map-notice {

@@ -10,6 +10,7 @@ import type {
   DispatchOutcome,
   DispatchOverview,
   DispatchStatus,
+  FrameCodeInfo,
   FusionTarget,
   LawDispatchRecommend,
   MaritimeStats,
@@ -18,12 +19,20 @@ import type {
   SourceReport,
   TargetFilter,
   TargetTrackLine,
+  TargetType,
   TrackPoint,
 } from '@/types/maritime'
 
 interface TargetListQuery extends Partial<TargetFilter> {
   page?: number
   pageSize?: number
+}
+
+interface HistoricalTargetQuery {
+  date: string
+  page?: number
+  pageSize?: number
+  types?: TargetType[]
 }
 
 interface AlarmListQuery {
@@ -74,19 +83,39 @@ export function fetchTargets(query: TargetListQuery = {}): Promise<PageResult<Fu
   return request<PageResult<FusionTarget>>(`/api/maritime/targets${qs}`)
 }
 
+/** 按日期查询历史船只快照，供历史模式地图展示。 */
+export function fetchHistoricalTargets(query: HistoricalTargetQuery): Promise<PageResult<FusionTarget>> {
+  const qs = buildQuery({
+    date: query.date,
+    page: query.page ?? 1,
+    pageSize: query.pageSize ?? 999,
+    types: query.types,
+  })
+  return request<PageResult<FusionTarget>>(`/api/maritime/history/targets${qs}`)
+}
+
 /** 按目标标识查询融合目标详情。 */
-export function fetchTargetDetail(id: string): Promise<FusionTarget> {
-  return request<FusionTarget>(`/api/maritime/target/detail?id=${encodeURIComponent(id)}`)
+export function fetchTargetDetail(id: string, date?: string): Promise<FusionTarget> {
+  const qs = date ? `&date=${encodeURIComponent(date)}` : ''
+  return request<FusionTarget>(`/api/maritime/target/detail?id=${encodeURIComponent(id)}${qs}`)
+}
+
+/** 查询目标帧码维度信息，传入历史日期时返回该日期快照。 */
+export function fetchTargetFrameCode(id: string, date?: string): Promise<FrameCodeInfo> {
+  const qs = date ? `&date=${encodeURIComponent(date)}` : ''
+  return request<FrameCodeInfo>(`/api/maritime/target/frame-code?id=${encodeURIComponent(id)}${qs}`)
 }
 
 /** 查询目标最近各来源上报记录。 */
-export function fetchTargetSources(id: string): Promise<SourceReport[]> {
-  return request<SourceReport[]>(`/api/maritime/target/sources?id=${encodeURIComponent(id)}`)
+export function fetchTargetSources(id: string, date?: string): Promise<SourceReport[]> {
+  const qs = date ? `&date=${encodeURIComponent(date)}` : ''
+  return request<SourceReport[]>(`/api/maritime/target/sources?id=${encodeURIComponent(id)}${qs}`)
 }
 
 /** 查询目标最近轨迹点，limit 默认 60。 */
-export function fetchTargetTrack(id: string, limit = 60): Promise<TrackPoint[]> {
-  return request<TrackPoint[]>(`/api/maritime/target/track?id=${encodeURIComponent(id)}&limit=${limit}`)
+export function fetchTargetTrack(id: string, limit = 60, date?: string): Promise<TrackPoint[]> {
+  const qs = date ? `&date=${encodeURIComponent(date)}` : ''
+  return request<TrackPoint[]>(`/api/maritime/target/track?id=${encodeURIComponent(id)}&limit=${limit}${qs}`)
 }
 
 /** 批量查询全部目标最近轨迹线段，供海图轨迹图层使用。 */

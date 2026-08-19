@@ -293,7 +293,7 @@ function buildLayerContext(runtime: MapRuntime, ctx: CanvasRenderingContext2D): 
     now: performance.now(),
     project: (point: LatLng) => projectPoint(runtime, point),
     unproject: (x: number, y: number) => unprojectPoint(runtime, x, y),
-    targets: targetsStore.targets,
+    targets: targetsStore.mapTargets,
     followedIds: targetsStore.followedIds,
     layers: mapStore.layers,
     targetStyle: mapStore.targetStyle,
@@ -393,7 +393,7 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
   if (mapStore.layers.vessels) {
     const radius = markerRadius(mapStore.targetStyle.markerSize)
     const markerSize = TARGET_MARKER_SIZE[mapStore.targetStyle.markerSize]
-    for (const item of buildScreenItems(targetsStore.targets, project, mapStore.zoom, targetsStore.followedIds)) {
+    for (const item of buildScreenItems(targetsStore.mapTargets, project, mapStore.zoom, targetsStore.followedIds)) {
       const distance = Math.hypot(item.x - x, item.y - y)
       const threshold = isCluster(item)
         ? clusterRadius(item.targets.length) + 4
@@ -405,7 +405,7 @@ function hitMapItem(runtime: MapRuntime, x: number, y: number): MapHit | null {
   }
 
   if (mapStore.layers.vessels && targetsStore.selectedId && targetsStore.track.length > 0) {
-    const target = targetsStore.targets.find((item) => item.id === targetsStore.selectedId)
+    const target = targetsStore.mapTargets.find((item) => item.id === targetsStore.selectedId)
     if (target) {
       const track = targetsStore.track
       for (let index = track.length - 1; index >= 0; index -= 1) {
@@ -775,7 +775,7 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
   }
 
   watch(
-    () => targetsStore.targets,
+    () => targetsStore.mapTargets,
     (list) => {
       if (!mapStore.followId) return
       const target = list.find((item) => item.id === mapStore.followId)
@@ -822,7 +822,7 @@ export function useMaritimeMap(canvasRef: Ref<HTMLCanvasElement | null>) {
         () => mapStore.highlightId,
         () => mapStore.selectedCategory,
         () => mapStore.selectedCategoryId,
-        () => targetsStore.targets,
+        () => targetsStore.mapTargets,
         () => targetsStore.followedIds,
         () => targetsStore.selectedId,
         () => targetsStore.track,

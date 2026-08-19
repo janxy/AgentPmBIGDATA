@@ -146,7 +146,11 @@
     </div>
 
     <div class="tm-list">
-      <div v-if="activeTab === 'vessel' && targetsStore.loading && !targetsStore.loaded" class="tm-loading">
+      <div v-if="activeTab === 'vessel' && targetsStore.historyLoading" class="tm-loading">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>历史数据加载中</span>
+      </div>
+      <div v-else-if="activeTab === 'vessel' && targetsStore.loading && !targetsStore.loaded" class="tm-loading">
         <el-icon class="is-loading"><Loading /></el-icon>
         <span>海图数据加载中</span>
       </div>
@@ -390,7 +394,7 @@ const panelTotal = computed(() => {
 const emptyText = computed(() => `暂无符合条件的${MONITOR_CATEGORY_LABELS[activeTab.value]}`)
 
 const tabCounts = computed(() => ({
-  vessel: targetsStore.targets.length,
+  vessel: targetsStore.mapTargets.length,
   radar: RADAR_STATIONS.length,
   eo: EO_DEVICES.length,
   fence: FENCE_ZONES.length,
